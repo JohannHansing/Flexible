@@ -1,0 +1,1 @@
+* Maybe use FENE potential, instead of bead-spring, as in BrownianDynamics-Handbook-v5.pdf (Reading/FlexibleforBD)

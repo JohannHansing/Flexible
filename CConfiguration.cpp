@@ -16,26 +16,26 @@ CConfiguration::CConfiguration(){
 }
 
 
-CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_triggers triggers){
+CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_triggers triggers, file_desc files){
     _pradius = modelpar.particlesize/2;   //_pradius is now the actual radius of the particle. hence, I need to change the definition of the LJ potential to include (_pradius + _polyrad)   -  or maybe leave LJ pot out
     _polyrad = modelpar.polymersize / 2;   //This is needed for testOverlap for steric and HI stuff !!
 	_boxsize = modelpar.boxsize;
     _n_cellsAlongb = modelpar.n_cells;
-    _kappaSP = modelpar.kspring; // in kT/a^2 
+    _kappaSP = modelpar.kspring; // in kT/a^2
     _kappaBend = modelpar.kbend; // in kT
     _timestep = timestep;
-    
+
     for (int i = 0; i < 3; i++){
-        _ppos(i) = _boxsize/2;
+        _ppos(i) = _boxsize/_n_cellsAlongb/2;
         _boxnumberXYZ[i] = 0;
         _startpos(i) = _ppos(i);
     }
-    
+
     initConstants();
-    
+
     // init random number generator
     setRanNumberGen(0);
-    //initPolyspheres(); 
+    //initPolyspheres();
     //initInteractionMatrix(); // This comes only AFTER initPolyspheres
     initSemiFlexibleLattice();
     cout << "NOTE: Implement periodic boundary conditions for the polySpheres. I.e. checkBoxCrossing function! " << endl;
@@ -62,19 +62,19 @@ void CConfiguration::calcMobilityForces(){
         frtmp = 0;
         vec_rij = minImage(_polySpheres[i].pos - _ppos);
         rij = vec_rij.norm();
-        _Mrabs[i+1][0] = rij; 
-        _Mrabs[0][i+1] = rij; 
+        _Mrabs[i+1][0] = rij;
+        _Mrabs[0][i+1] = rij;
         _Mrvec[i+1][0] = vec_rij; // stores vector going from tracer to _polySphere[i]
-        _Mrvec[0][i+1] = -vec_rij; 
-        
+        _Mrvec[0][i+1] = -vec_rij;
+
         addLJPot(rij, _uLJ, frtmp, _pradius+_polyrad);
-        
+
         // add total directional forces
         _f_mob += - frtmp * vec_rij;
         _polySpheres[i].f_mob += frtmp * vec_rij;
     }
     utmp = _uLJ; // store total LJ potential of tracer
-    
+
     // Calculate 2p interaction for edgeParticles
     LJ_cut = 1.122462 * 2 * _polyrad;
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
@@ -83,14 +83,14 @@ void CConfiguration::calcMobilityForces(){
             frtmp = 0;
             vec_rij = minImage(_polySpheres[j].pos - _polySpheres[i].pos);
             rij = vec_rij.norm();
-            _Mrabs[j+1][i+1] = rij; 
-            _Mrabs[i+1][j+1] = rij; 
+            _Mrabs[j+1][i+1] = rij;
+            _Mrabs[i+1][j+1] = rij;
             _Mrvec[j+1][i+1] = vec_rij; // stores vector going from _polySphere[i] to _polySphere[j]
-            _Mrvec[i+1][j+1] = -vec_rij; 
-            
+            _Mrvec[i+1][j+1] = -vec_rij;
+
             // LJ Interaction
             addLJPot(rij, utmp, frtmp, 2 * _polyrad);
-            
+
             // Spring interaction
             if (_springMatrix[i][j] == true){
                 addSpringPot(rij, _uspring, frtmp);
@@ -102,13 +102,13 @@ void CConfiguration::calcMobilityForces(){
         }
     }
     utmp+=_uspring;
-    
+
     // Loop over matrix of 3 particle bending interaction tupel _MBend[N_bendInteractions][3]
     if (_kappaBend != 0){
         Vector3d fvec1, fvec3;
         double utmp3p=0;
         int i1, i2, i3;
-    
+
         for (int i=0; i<_N_springInteractions; i++){
             i1 = _MbendTupel[i][0] + 1;
             i2 = _MbendTupel[i][1] + 1;
@@ -151,19 +151,19 @@ void CConfiguration::makeStep(){
     //move the tracer particle according to the forces and record trajectory like watched by outsider
     _prevpos = _ppos;
     _ppos += _f_mob * _timestep + _f_sto * _mu_sto;
-    
+
     // move polymerSperes
     double mu_correction = _pradius/_polyrad;
     for (unsigned int i = 0; i < _polySpheres.size() ; i++) {
         _polySpheres[i].pos += _polySpheres[i].f_mob * _timestep * mu_correction + _polySpheres[i].f_sto * _mu_sto_poly;
     }
     if ((_prevpos-_ppos).squaredNorm() > 1 ){
-        cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos 
-            << "\nppos:\n" << _ppos 
-                << "\n_upot = " << _upot 
+        cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos
+            << "\nppos:\n" << _ppos
+                << "\n_upot = " << _upot
                     << "\nubend = " << _ubend << " -- uspring = " << _uspring << " -- uLJ = " << _uLJ <<  endl;
     }
-    // Check if particle has crossed the confinenment of the box 
+    // Check if particle has crossed the confinenment of the box
     checkBoxCrossing();
 }
 
@@ -188,15 +188,15 @@ void CConfiguration::calcStochasticForces(){
     // samples from normal distribution with variance 1 (later sqrt(2) is multiplied)
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<double> > ran_gen(
             *m_igen, boost::normal_distribution<double>(0, 1));
-	
+
 	Vector3d ran_v = Vector3d::Zero();
-	
+
     ran_v(0) = ran_gen();
 	ran_v(1) = ran_gen();
 	ran_v(2) = ran_gen();
 
     _f_sto = ran_v;
-    
+
     for (unsigned int i = 0; i < _polySpheres.size() ; i++) {
         _polySpheres[i].f_sto(0) = ran_gen();
         _polySpheres[i].f_sto(1) = ran_gen();
@@ -268,12 +268,33 @@ void CConfiguration::saveXYZTraj(string name, const int& move, string flag) {
     }
 }
 
+void CConfiguration::save_traj_step(XDRFILE *xd, unsigned int stepcount) {
+    // copy necessary to convert double to float
+    std::vector<std::array<float, 3> > rvecs(_N_polySpheres+1);  //TODO xtc TAKE CARE OF THIS
+    // std::copy(
+    //     reinterpret_cast<const double *>(&state.allPositions.front()),
+    //     reinterpret_cast<const double *>(&state.allPositions.front()) + state.allPositions.size()*3,
+    //     reinterpret_cast<float *>(&rvecs.front())
+    // );
+    //TODO xtc inefficient copying (?) check benchmark
+    for (int i=0; i<=_N_polySpheres; i++){
+        rvecs[i][0] = (float)_polySpheres[i].pos(0);
+        rvecs[i][1] = (float)_polySpheres[i].pos(1);
+        rvecs[i][2] = (float)_polySpheres[i].pos(2);
+    }
 
+    //TODO xtc   put his matrix thing in header, dont define it here everytime!
+    matrix box_matrix;
+    box_matrix[0][0] = _boxsize;
+    box_matrix[1][1] = _boxsize;
+    box_matrix[2][2] = _boxsize;
+    write_xtc(xd, (_N_polySpheres+1), (stepcount), (stepcount * _timestep), box_matrix, (rvec*) &rvecs[0], 1000);  //TODO xtc redefine last parameter precision
+}
 
 void CConfiguration::saveCoordinates(ostream& trajectoryfile, unsigned int stepcount) {
     // So far this only writes the tracer particle position
-	trajectoryfile << fixed << stepcount * _timestep << "\t" 
-        << _ppos(0)+ _boxsize *_boxnumberXYZ[0] << " " << _ppos(1) +_boxsize*_boxnumberXYZ[1] 
+	trajectoryfile << fixed << stepcount * _timestep << "\t"
+        << _ppos(0)+ _boxsize *_boxnumberXYZ[0] << " " << _ppos(1) +_boxsize*_boxnumberXYZ[1]
             << " " << _ppos(2) +_boxsize*_boxnumberXYZ[2] << endl;
 
 	// for (unsigned int i = 0; i < m_NumberParticles; i++) {

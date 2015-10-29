@@ -13,6 +13,9 @@
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
 
+#include "xdrfile.h"
+#include "xdrfile_xtc.h"
+
 #include <Eigen/Dense>
 #include <Eigen/Cholesky>
 
@@ -45,9 +48,9 @@ private:
     //BEND Potential
     bool _bendPot;
     double _kappaBend;
-    double _ubend; 
-    
-    
+    double _ubend;
+
+
 
 
     //COUNTERS AND INIT VALUES
@@ -62,7 +65,7 @@ private:
     Eigen::Vector3d _f_mob;   //store mobility and stochastic force
     Eigen::Vector3d _f_sto;
     Eigen::Vector3d _startpos;
-    
+
     //Lattice parameters
     std::vector<CPolySphere> _polySpheres;
     int _n_cellsAlongb;
@@ -71,12 +74,12 @@ private:
     int _N_cellParticles;
     double _boxsize;          // ALWAYS define boxsize through particlesize due to scaling!
     double _polyrad;
-    
+
     //Storage Matrices for distances and distance vectors
-    std::vector<std::vector<double> > _Mrabs; 
+    std::vector<std::vector<double> > _Mrabs;
     std::vector<std::vector<Eigen::Vector3d> > _Mrvec;
-        
-	
+
+
     // Bead-Spring interaction
     std::vector<std::vector<bool> > _springMatrix; // Bool parameter is true for spring-connected neighbors
     int _N_springInteractions;
@@ -87,12 +90,13 @@ private:
     //MISC
     boost::mt19937 *m_igen;                      //generate instance of random number generator "twister".
     FILE* m_traj_file;
+    FILE* _groFile;
 
 
 
 public:
     CConfiguration();
-    CConfiguration(double timestep, model_param_desc modelpar, sim_triggers triggers);
+    CConfiguration(double timestep, model_param_desc modelpar, sim_triggers triggers, file_desc _files);
     void updateStartpos();
     void makeStep();
     void checkBoxCrossing();
@@ -105,6 +109,43 @@ public:
 	std::vector<double> getppos();
     double getUpot(){ return _upot; }
     string getTestCue(){ return _testcue; };
+    void save_traj_step(XDRFILE *xd, unsigned int stepcount);
+    bool printGroFile(string folder){
+        /* http://manual.gromacs.org/current/online/gro.html
+        residue number (5 positions, integer)
+        residue name (5 characters)
+        atom name (5 characters)
+        atom number (5 positions, integer)
+        position (in nm, x y z in 3 columns, each 8 positions with 3 decimal places)
+        velocity (in nm/ps (or km/s), x y z in 3 columns, each 8 positions with 4 decimal places)
+        */
+        string grofileDir = folder + "/init.gro";
+        Eigen::Vector3d rtmp;
+        _groFile = fopen(grofileDir.c_str(), "w");
+        if(_groFile==NULL) {
+            cout << "Error creating init.gro" << endl;
+            throw 3;
+            return false;
+        }
+        if (_polySpheres.size() == 0){
+            cout << "ERROR: _polySpheres not initialized yet!\nAborting!";
+            throw 3;
+            return false;
+        }
+        fprintf(_groFile, ";This file was created by printGroFile in CConfiguration.h\n%5d\n", _N_polySpheres + 1  ); // number of atoms
+
+        //fprintf(m_traj_file, "%d\n%s (%8.3f %8.3f %8.3f) t=%d \n", _N_polySpheres + 1, "sim_name", _boxsize, _boxsize, _boxsize, move);
+        // Tracer
+        fprintf(_groFile, "%5d%-5s%5s%5d%8.3f%8.3f%8.3f\n", 1, "TRACR", "H", 1, _ppos(0), _ppos(1),  _ppos(2));
+        // polymer particles
+        for (unsigned int i = 0; i < _N_polySpheres; i++) {
+            rtmp = _polySpheres[i].pos;//+boxCoordinates;
+            fprintf(_groFile, "%5d%-5s%5s%5d%8.3f%8.3f%8.3f\n", 2, "LATTC", "O", i+2, rtmp(0), rtmp(1),  rtmp(2));
+        }
+        fprintf(_groFile, ";%10.5f%10.5f%10.5f\n", _boxsize, _boxsize, _boxsize);   // Print Orthorombic Box Vectors as comment into gro File
+        fclose(_groFile);
+        return true;
+    }
 
 
 
@@ -117,13 +158,13 @@ private:
         _N_polySpheres = _N_cellParticles * pow(_n_cellsAlongb,3);
         _mu_sto = sqrt( 2 * _timestep );                 //timestep for stochastic force
         _mu_sto_poly = sqrt( 2 * _timestep * _pradius/_polyrad );
-        _epsilonLJ = 1;  // in kT 
+        _epsilonLJ = 1;  // in kT
         _upot = 0;
         _r0SP = _boxsize/_n_cellsAlongb/_edgeParticles; //equilibrium distance for spring potential
         cout << "TODO: Adjust bending and spring parameters! Consider Schlagberger2006 and Metzler paper." << endl;
     }
-    
-    
+
+
     int makeIndex(int i, int nx, int ny, int nz){ // Transforms a NxKxM matrix index (i,j,k) to an array index ind = i + j*K + l*M
         assert(i < _N_cellParticles  && "**** Index i out of range in makeIndex()!");
         if (nx == -1) nx += _n_cellsAlongb;
@@ -134,7 +175,7 @@ private:
         if (nz == _n_cellsAlongb) nz = 0;
         return i + nx * _N_cellParticles + ny * _n_cellsAlongb * _N_cellParticles + nz * pow(_n_cellsAlongb,2) * _N_cellParticles;
     }
-    
+
     //POTENTIALS
     void addLJPot(const double r, double& U, double& Fr, const double r_steric){
         //Function to calculate the Lennard-Jones Potential
@@ -144,15 +185,15 @@ private:
             Fr +=  24  * _epsilonLJ / ( r * r ) * ( 2 * por6*por6 - por6 );
         }
     }
-    
-    void addSpringPot(const double& r, double &U, double &Fr) { 
-        U += (_kappaSP * pow(r - _r0SP, 2)); 
+
+    void addSpringPot(const double& r, double &U, double &Fr) {
+        U += (_kappaSP * pow(r - _r0SP, 2));
         Fr += (_kappaSP * 2 * (_r0SP/r - 1));
     }
-    
-    
+
+
     void calcBendPot(Eigen::Vector3d vec_r12, Eigen::Vector3d vec_r32, double r12, double r32, double& U, Eigen::Vector3d& fvec1, Eigen::Vector3d& fvec3){
-        // Function that returns the bending potential between three particles, where partice 2 is in the middle 
+        // Function that returns the bending potential between three particles, where partice 2 is in the middle
         Eigen::Vector3d vec_n = vec_r12.cross(vec_r32);
         double r12r32 = r12*r32;
        // cout << "theta = " << 180 / 3.14 * acos(vec_r12.dot(vec_r32)/r12r32) << endl;
@@ -160,26 +201,26 @@ private:
         fvec3 =  _kappaBend *  vec_n.cross(vec_r32) / (r32*r32*r12r32);
         U     =  _kappaBend *  ( 1 + vec_r12.dot(vec_r32)/r12r32 );
     }
-    
-    
-    
-    
-    
+
+
+
+
+
     // LATTICE INITIALIZATION FUNCTIONS
-    
+
     /******* TEMPLATE
         - overwrite neccessary parameters like _r0SP
         - Fill edgeParticles Vector
         - resize storage matrices/vectors
         - init 2p and 3p interaction vectors / matrices
     */
-    
+
     void initSemiFlexibleLattice(){
         assert(_edgeParticles > 1 && "**** Edgeparticles need to be more than 1 for semiflexible lattice!");
         _polySpheres.clear();
         Eigen::Vector3d nvec;
         Eigen::Vector3d ijk;
-    
+
         // init PolySpheres
         std::vector<Eigen::Vector3d> zeroPos( _N_cellParticles , Eigen::Vector3d::Zero() );
     	// store the edgeParticle positions in first cell in zeroPos
@@ -187,7 +228,7 @@ private:
     	for (int i = 1; i < _edgeParticles; i++){
     		double tmp = i * (_boxsize/_n_cellsAlongb) / _edgeParticles;
     		zeroPos[i](0) = tmp;
-    		zeroPos[i + (_edgeParticles - 1)](1) = tmp;  
+    		zeroPos[i + (_edgeParticles - 1)](1) = tmp;
     		zeroPos[i + 2 * (_edgeParticles - 1)](2) = tmp;
     	}
     	for (int nz=0; nz < _n_cellsAlongb; nz++){
@@ -201,7 +242,7 @@ private:
             }
     	}
         assert(_N_polySpheres == _polySpheres.size()  && "**** Size of _polySpheres vector is incorrect, i.e. not equal to _N_polySpheres!");
-        
+
         //resize storage containers for distances and vectors
         _Mrvec.resize(_N_polySpheres+1);
         _Mrabs.resize(_N_polySpheres+1);
@@ -209,7 +250,7 @@ private:
             _Mrvec[i].resize(_N_polySpheres+1);
             _Mrabs[i].resize(_N_polySpheres+1);
         }
-    
+
         // Init two-particle spring and three-particle bending interaction Vectors
         _N_springInteractions = (3 * _edgeParticles) * pow(_n_cellsAlongb,3);
         _MspringTupel.resize(_N_springInteractions);
@@ -219,7 +260,7 @@ private:
         for (int i=0;i<_N_polySpheres;i++){
             _springMatrix[i].resize(_N_polySpheres,false);
         }
-    
+
         int counter = 0;
         int ne = _edgeParticles - 1; // "extra particles" between 0 particles. This I use in my paper version for the code
     	for (int nz=0; nz < _n_cellsAlongb; nz++){
@@ -295,7 +336,7 @@ private:
         assert((counter == _N_springInteractions) && "**** final counter Not equal size as _N_springInteractions");
         //printSpringMatrix();
     }
-    
+
 
     void initZhouPolyspheres(){
         // initialize the PolymerSphere positions
@@ -310,7 +351,7 @@ private:
             }
     	}
     }
-    
+
     void initZhouInteractionMatrix(){
         assert(_N_polySpheres != 0 && "**** _N_polySpheres is zero. Can't initialize interaction Matrix!");
         Eigen::Vector3i nvec;
@@ -320,9 +361,9 @@ private:
         for (int i=0;i<_N_polySpheres;i++){
             _springMatrix[i].resize(_N_polySpheres,false);
         }
-    
+
         // Change appropriate spring Matrix parts to true
-    
+
         // init cubic lattice w spheres in corners
         _r0SP = _boxsize/_n_cellsAlongb; //equilibrium distance for spring potential Leave this here since it belongs to cubic lattice interactionMatrix
     	for (int nz=0; nz < _n_cellsAlongb; nz++){
@@ -337,7 +378,7 @@ private:
                         if (ijk(n) == -1) ijk(n) += _n_cellsAlongb;  //periodic BC
                         ijk_to_m = ijk(0) + ijk(1) * _n_cellsAlongb + ijk(2)*pow(_n_cellsAlongb,2);
                         _springMatrix[nvec_to_m][ijk_to_m] = true;
-        
+
                         ijk = nvec;
                         ijk(n) = nvec(n) + 1;  //neighbor in +n direction
                         if (ijk(n) == _n_cellsAlongb ) ijk(n) -= _n_cellsAlongb;  //periodic BC
@@ -348,8 +389,8 @@ private:
             }
     	}
     }
-    
-    
+
+
     //MISC
     template<typename T>
     string toString(const T& value){
@@ -375,7 +416,9 @@ private:
             cout <<" ]"<< endl;
         }
     }
-    
+
+
+
 
 };
 

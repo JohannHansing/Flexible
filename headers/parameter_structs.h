@@ -12,6 +12,8 @@
 
 #include <string.h>
 #include <Eigen/Dense>
+#include "xdrfile.h"
+#include "xdrfile_xtc.h"
 
 struct sim_param_desc {
     int runs;
@@ -23,12 +25,16 @@ struct sim_param_desc {
 };
 
 struct sim_triggers {
+    // TEST CUE to modify the directory the output data is written to!!
+    string _testcue = "FillEdge";
     //bool bendPot;
 };
 
 struct file_desc {
     // TODO MAYBE
     string folder;
+    XDRFILE *xd;                    // handle to trajectory file
+    std::string xtc_filename;       // trajectory filename
 };
 
 

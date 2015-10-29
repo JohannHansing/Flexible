@@ -13,6 +13,9 @@
 #include <sstream>
 #include <math.h>
 #include <boost/filesystem.hpp>
+#include "xdrfile.h"
+#include "xdrfile_xtc.h"
+
 #include "headers/CAverage.h"
 #include "headers/CConfiguration.h"
 #include "headers/parameter_structs.h"
@@ -28,7 +31,7 @@ struct file_desc _files;
 struct sim_triggers _triggers;
 
 
-//Function declarations
+//Function declarations //TODO put all this in header Flexible.h!
 void createDataFolder(string cue);
 void parameterFile(string cue);
 void parameterFileAppend(double executiontime);
@@ -46,7 +49,7 @@ int main(int argc, const char* argv[]){
 
     // INPUT PARAMETERS:
 	int boolpar = 0;
-	
+
     //TRIGGERS:
     //_triggers.bendPot = (strcmp(argv[1] , "true") == 0 ) ;
 	// Checking for correct structure of input arguments
@@ -57,7 +60,7 @@ int main(int argc, const char* argv[]){
 			exit(1);
 		}
 	}
-    
+
     //NUMBERS
     _simpar.runs = atoi( argv[boolpar+1] );                       // Number of Simulation runs to get mean values from
     _simpar.timestep = atof( argv[boolpar+2] );
@@ -65,8 +68,8 @@ int main(int argc, const char* argv[]){
     _simpar.instantvalues = 200;
     _simpar.steps = _simpar.simtime/_simpar.timestep;
     _simpar.saveInt = _simpar.steps/_simpar.instantvalues;
-    
-    _modelpar.polymersize = atof( argv[boolpar+4] );     
+
+    _modelpar.polymersize = atof( argv[boolpar+4] );
     _modelpar.particlesize = atof( argv[boolpar+5] );
     _modelpar.n_cells = atof( argv[boolpar+6] );
     _modelpar.urange = atof( argv[boolpar+7] );
@@ -81,10 +84,19 @@ int main(int argc, const char* argv[]){
 
 
     //initialize instance of configuration
-    CConfiguration conf = CConfiguration(_simpar.timestep, _modelpar, _triggers);
-
+	CConfiguration conf;
+	try{
+        conf = CConfiguration(_simpar.timestep, _modelpar, _triggers, _files);
+    }
+	catch(int e){
+		cout << "An exception occurred. Exception Nr. " << e << '\n';
+		return 1;
+	}
     //Create data folders and print location as string to string "folder"
     createDataFolder(conf.getTestCue());
+    if (!conf.printGroFile(_files.folder)){   //This also throws an exception. Hence, it can be moved back into conf without problems
+		return 1;
+	}
 
 
     //create file to save the trajectory
@@ -94,11 +106,17 @@ int main(int argc, const char* argv[]){
     // Initialize counters and stuff
     start = clock();
     cout << "Starting Simulation!" << endl;
-    
+
     unsigned int stepcount = 0;
     ofstream trajectoryfile;
     trajectoryfile.open((_files.folder + "/Coordinates/trajectory.txt").c_str());
-    
+	_files.xtc_filename = "TEST.xtc";    // TODO xtc
+    _files.xd = xdrfile_open((_files.folder + "/Coordinates/" + _files.xtc_filename).c_str(), "w");
+	if (!_files.xd) {
+      std::cout << "Error: Could not open trajectory file " << _files.xtc_filename << " for writing." << std::endl;
+      return 1;
+    }
+
     //create .xyz file to save the trajectory for VMD
     string traj_file = _files.folder + "/Coordinates/single_traj.xyz";
     conf.saveXYZTraj(traj_file,0,"w");
@@ -134,13 +152,14 @@ int main(int argc, const char* argv[]){
             // Write trajectory to trajectoryfile
             if (stepcount%trajout == 0) {
                 conf.saveCoordinates(trajectoryfile, stepcount);
+				conf.save_traj_step(_files.xd,i);  //TODO xtc
             }
             if (((i+1)%100 == 0) && (l == 0)){       //Save the first trajectory to file
                 conf.saveXYZTraj(traj_file, i, "a");                    // TODO change back ((i+1)%XXX == 0) to 100
             }
         }
         if (l==0) conf.saveXYZTraj(traj_file, _simpar.steps, "c"); // Close XYZ traj_file
-        
+
     }//----------END OF RUNS-LOOP ----------------
 
 
@@ -153,6 +172,7 @@ int main(int argc, const char* argv[]){
     parameterFileAppend(runtime);
 
 	trajectoryfile.close();
+	xdrfile_close(_files.xd); //TODO xtc
 
 
     return 0;
@@ -194,6 +214,7 @@ void createDataFolder(string testcue){
     boost::filesystem::create_directories(folder);
     boost::filesystem::create_directory(folder + "/InstantValues");
     boost::filesystem::create_directory(folder + "/Coordinates");
+	cout << "Writing data to folder:\n" << folder << endl;
     _files.folder = folder;
 }
 
@@ -202,11 +223,11 @@ void parameterFile(string testcue){
     //Creates a file where the simulation settings are stored
     ofstream parameterFile;
     parameterFile.open((_files.folder + "/parameters.txt").c_str());
-    
+
     // Print time and date
     time_t t = time(0);   // get time now
     struct tm * now = localtime( & t );
-    parameterFile << "date " << (now->tm_year + 1900) << '-' 
+    parameterFile << "date " << (now->tm_year + 1900) << '-'
          << (now->tm_mon + 1) << '-'
          <<  now->tm_mday
          << endl;
