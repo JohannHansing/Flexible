@@ -162,6 +162,7 @@ void CConfiguration::makeStep(){
             << "\nppos:\n" << _ppos
                 << "\n_upot = " << _upot
                     << "\nubend = " << _ubend << " -- uspring = " << _uspring << " -- uLJ = " << _uLJ <<  endl;
+        throw 2;
     }
     // Check if particle has crossed the confinenment of the box
     checkBoxCrossing();
@@ -268,7 +269,7 @@ void CConfiguration::saveXYZTraj(string name, const int& move, string flag) {
     }
 }
 
-void CConfiguration::save_traj_step(XDRFILE *xd, unsigned int stepcount) {
+void CConfiguration::save_traj_step(XDRFILE *xd, const int stepcount) {
     // copy necessary to convert double to float
     std::vector<std::array<float, 3> > rvecs(_N_polySpheres+1);  //TODO xtc TAKE CARE OF THIS
     // std::copy(
@@ -277,10 +278,13 @@ void CConfiguration::save_traj_step(XDRFILE *xd, unsigned int stepcount) {
     //     reinterpret_cast<float *>(&rvecs.front())
     // );
     //TODO xtc inefficient copying (?) check benchmark
-    for (int i=0; i<=_N_polySpheres; i++){
-        rvecs[i][0] = (float)_polySpheres[i].pos(0);
-        rvecs[i][1] = (float)_polySpheres[i].pos(1);
-        rvecs[i][2] = (float)_polySpheres[i].pos(2);
+    rvecs[0][0] = (float)_ppos(0);
+    rvecs[0][1] = (float)_ppos(1);
+    rvecs[0][2] = (float)_ppos(2);
+    for (int i=0; i<_N_polySpheres; i++){
+        for (int k=0; k <3; k++){
+            rvecs[i+1][k] = (float)_polySpheres[i].pos(k);
+        }
     }
 
     //TODO xtc   put his matrix thing in header, dont define it here everytime!

@@ -109,7 +109,7 @@ public:
 	std::vector<double> getppos();
     double getUpot(){ return _upot; }
     string getTestCue(){ return _testcue; };
-    void save_traj_step(XDRFILE *xd, unsigned int stepcount);
+    void save_traj_step(XDRFILE *xd, const int stepcount);
     bool printGroFile(string folder){
         /* http://manual.gromacs.org/current/online/gro.html
         residue number (5 positions, integer)
@@ -153,7 +153,8 @@ private:
     void setRanNumberGen(double seed);
     void initConstants(){
         // Function to init constants, so this doesn't clutter the cpp file
-        _edgeParticles =  (int) ( _boxsize/_n_cellsAlongb/(2*_polyrad) + 0.0001);
+        double minimalDistance = 1.122462*2*_polyrad; // The minimal Distance between neighboring spheres in the start configuration needs to be where the LJ pot is zero
+        _edgeParticles =  (int) ( _boxsize/_n_cellsAlongb/(minimalDistance) + 0.0001);   // FillEdge
         _N_cellParticles = 3 * _edgeParticles - 2;
         _N_polySpheres = _N_cellParticles * pow(_n_cellsAlongb,3);
         _mu_sto = sqrt( 2 * _timestep );                 //timestep for stochastic force

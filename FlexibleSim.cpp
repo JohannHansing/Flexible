@@ -5,43 +5,25 @@
  *      Author: Johann Hansing
  */
 
-#include <stdlib.h>     /* exit, EXIT_FAILURE */
-#include <string.h>
-#include <iostream>
-#include <fstream>
-#include <time.h>
-#include <sstream>
-#include <math.h>
-#include <boost/filesystem.hpp>
-#include "xdrfile.h"
-#include "xdrfile_xtc.h"
 
-#include "headers/CAverage.h"
-#include "headers/CConfiguration.h"
-#include "headers/parameter_structs.h"
+#include "headers/FlexibleSim.h"
 
 
 using namespace std;
 
 
-// Create global instances of structs
-struct sim_param_desc _simpar;
-struct model_param_desc _modelpar;
-struct file_desc _files;
-struct sim_triggers _triggers;
 
 
-//Function declarations //TODO put all this in header Flexible.h!
-void createDataFolder(string cue);
-void parameterFile(string cue);
-void parameterFileAppend(double executiontime);
 
-template<typename T>
-string toString(const T& value);
-
-template <typename T, size_t N>
-inline
-size_t sizeOfArray( const T(&)[ N ] );
+//Function declarations //TODO deprecated
+// void createDataFolder(string cue);
+// void parameterFile(string cue);
+// void parameterFileAppend(double executiontime);
+// template<typename T>
+// string toString(const T& value);
+// template <typename T, size_t N>
+// inline
+// size_t sizeOfArray( const T(&)[ N ] );
 
 int main(int argc, const char* argv[]){
 	// measure runtime of the simulation
@@ -139,7 +121,13 @@ int main(int argc, const char* argv[]){
             conf.calcMobilityForces();
 
             stepcount++;
-            conf.makeStep();    //move particle at the end of iteration
+			try{
+                conf.makeStep();    //move particle at the end of iteration
+			}
+			catch(int e){
+				cout << "Exception " << e << " during makeStep routine";
+				return 1;
+			}
 
             // steric hard-sphere interaction
             // while (includeSteric && conf.testOverlap()){
@@ -176,99 +164,4 @@ int main(int argc, const char* argv[]){
 
 
     return 0;
-}
-
-
-
-
-
-
-
-
-
-//--------------------------------------------------------------------------
-//**************************************************************************
-//--------------------------------------------------------------------------
-
-
-
-
-void createDataFolder(string testcue){
-    //NOTE: Maybe I can leave out dt, as soon as I settled on a timestep
-    //NOTE: As soon as I create input-list with variables, I must change this function
-    char range[5];
-    //sprintf(range, "%.3f", _modelpar.potRange);
-    //In the definition of folder, the addition has to START WITH A STRING! for the compiler to know what to do (left to right).
-    string folder = "sim_data";
-    if (!testcue.empty()) folder = folder + "/test/" + testcue;
-    folder = folder
-            + "/dt" + toString(_simpar.timestep)
-            + "/t" + toString(_simpar.simtime)
-            + "/kb" + toString(_modelpar.kbend)
-            + "/ks" + toString(_modelpar.kspring)
-            + "/a" + toString(_modelpar.polymersize)
-            + "/b" + toString(_modelpar.boxsize)
-            + "/p" + toString(_modelpar.particlesize);
-        //    + "/k" + range
-        //    + "/u" + toString(potStrength);
-    boost::filesystem::create_directories(folder);
-    boost::filesystem::create_directory(folder + "/InstantValues");
-    boost::filesystem::create_directory(folder + "/Coordinates");
-	cout << "Writing data to folder:\n" << folder << endl;
-    _files.folder = folder;
-}
-
-
-void parameterFile(string testcue){
-    //Creates a file where the simulation settings are stored
-    ofstream parameterFile;
-    parameterFile.open((_files.folder + "/parameters.txt").c_str());
-
-    // Print time and date
-    time_t t = time(0);   // get time now
-    struct tm * now = localtime( & t );
-    parameterFile << "date " << (now->tm_year + 1900) << '-'
-         << (now->tm_mon + 1) << '-'
-         <<  now->tm_mday
-         << endl;
-    parameterFile << "starttime " << now->tm_hour << ":" << now->tm_min << ":" << now->tm_sec << endl;
-    parameterFile << "Sim_dir " << _files.folder << endl;
-    if (!testcue.empty()) parameterFile << "Test cue " << testcue << endl;
-    parameterFile << "p " << _modelpar.particlesize << endl;
-    parameterFile << "n " << _modelpar.n_cells << endl;
-    parameterFile << "b " << _modelpar.boxsize << endl;
-    parameterFile << "dt " << _simpar.timestep << endl;
-    parameterFile << "runs " << _simpar.runs << endl;
-    parameterFile << "steps " << _simpar.steps << endl;
-    parameterFile << "time " << _simpar.timestep*_simpar.steps << endl;
-    parameterFile << "a " << _modelpar.polymersize << endl;
-    parameterFile << "ks " << _modelpar.kspring << endl;
-    parameterFile << "kb " << _modelpar.kbend << endl;
- //   parameterFile << "k " << _modelpar.potRange << endl;
- //   parameterFile << "U_0 " << _modelpar.potStrength << endl;
-
-    parameterFile.close();
-}
-
-void parameterFileAppend(double executiontime){
-    // Appends parameters to parameters file
-    ofstream parameterFile;
-    parameterFile.open((_files.folder + "/parameters.txt").c_str(), std::ios_base::app);
-    parameterFile << "ExecutionTime " << executiontime << " s" << endl;
-    parameterFile.close();
-}
-
-
-template<typename T>
-string toString(const T& value){
-    ostringstream oss;
-    oss << value;
-    return oss.str();
-}
-
-template <typename T, size_t N>
-inline
-size_t sizeOfArray( const T(&)[ N ] )
-{
-  return N;
 }
