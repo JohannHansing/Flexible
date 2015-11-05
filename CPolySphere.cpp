@@ -9,4 +9,6 @@ CPolySphere::CPolySphere( Eigen::Vector3d PolySpherePos){
     pos = PolySpherePos;
     f_mob = Eigen::Vector3d::Zero();
     f_sto = Eigen::Vector3d::Zero();
+    image_corr = Eigen::Vector3d::Zero();
+    n_rn = 0;
 }

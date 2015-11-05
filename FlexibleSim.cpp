@@ -5,25 +5,11 @@
  *      Author: Johann Hansing
  */
 
-
 #include "headers/FlexibleSim.h"
 
 
 using namespace std;
 
-
-
-
-
-//Function declarations //TODO deprecated
-// void createDataFolder(string cue);
-// void parameterFile(string cue);
-// void parameterFileAppend(double executiontime);
-// template<typename T>
-// string toString(const T& value);
-// template <typename T, size_t N>
-// inline
-// size_t sizeOfArray( const T(&)[ N ] );
 
 int main(int argc, const char* argv[]){
 	// measure runtime of the simulation
@@ -31,7 +17,7 @@ int main(int argc, const char* argv[]){
 
     // INPUT PARAMETERS:
 	int boolpar = 0;
-
+	
     //TRIGGERS:
     //_triggers.bendPot = (strcmp(argv[1] , "true") == 0 ) ;
 	// Checking for correct structure of input arguments
@@ -42,7 +28,7 @@ int main(int argc, const char* argv[]){
 			exit(1);
 		}
 	}
-
+    
     //NUMBERS
     _simpar.runs = atoi( argv[boolpar+1] );                       // Number of Simulation runs to get mean values from
     _simpar.timestep = atof( argv[boolpar+2] );
@@ -50,8 +36,8 @@ int main(int argc, const char* argv[]){
     _simpar.instantvalues = 200;
     _simpar.steps = _simpar.simtime/_simpar.timestep;
     _simpar.saveInt = _simpar.steps/_simpar.instantvalues;
-
-    _modelpar.polymersize = atof( argv[boolpar+4] );
+    
+    _modelpar.polymersize = atof( argv[boolpar+4] );     
     _modelpar.particlesize = atof( argv[boolpar+5] );
     _modelpar.n_cells = atof( argv[boolpar+6] );
     _modelpar.urange = atof( argv[boolpar+7] );
@@ -66,19 +52,20 @@ int main(int argc, const char* argv[]){
 
 
     //initialize instance of configuration
-	CConfiguration conf;
-	try{
+    CConfiguration conf;
+    try{
         conf = CConfiguration(_simpar.timestep, _modelpar, _triggers, _files);
     }
-	catch(int e){
-		cout << "An exception occurred. Exception Nr. " << e << '\n';
-		return 1;
-	}
+    catch(int e){
+        cout << "An exception occurred. Exception Nr. " << e << '\n';
+        return 1;
+    }
     //Create data folders and print location as string to string "folder"
     createDataFolder(conf.getTestCue());
     if (!conf.printGroFile(_files.folder)){   //This also throws an exception. Hence, it can be moved back into conf without problems
-		return 1;
-	}
+        return 1;
+    }
+
 
 
     //create file to save the trajectory
@@ -92,9 +79,9 @@ int main(int argc, const char* argv[]){
     unsigned int stepcount = 0;
     ofstream trajectoryfile;
     trajectoryfile.open((_files.folder + "/Coordinates/trajectory.txt").c_str());
-	_files.xtc_filename = "TEST.xtc";    // TODO xtc
+    _files.xtc_filename = "TEST.xtc";    // TODO xtc
     _files.xd = xdrfile_open((_files.folder + "/Coordinates/" + _files.xtc_filename).c_str(), "w");
-	if (!_files.xd) {
+    if (!_files.xd) {
       std::cout << "Error: Could not open trajectory file " << _files.xtc_filename << " for writing." << std::endl;
       return 1;
     }
@@ -121,13 +108,13 @@ int main(int argc, const char* argv[]){
             conf.calcMobilityForces();
 
             stepcount++;
-			try{
+            try{
                 conf.makeStep();    //move particle at the end of iteration
-			}
-			catch(int e){
-				cout << "Exception " << e << " during makeStep routine";
-				return 1;
-			}
+            }
+            catch(int e){
+                cout << "Exception " << e << " during makeStep routine";
+                return 1;
+            }
 
             // steric hard-sphere interaction
             // while (includeSteric && conf.testOverlap()){
@@ -140,14 +127,14 @@ int main(int argc, const char* argv[]){
             // Write trajectory to trajectoryfile
             if (stepcount%trajout == 0) {
                 conf.saveCoordinates(trajectoryfile, stepcount);
-				conf.save_traj_step(_files.xd,i);  //TODO xtc
+                conf.save_traj_step(_files.xd,i);  //TODO xtc
             }
             if (((i+1)%100 == 0) && (l == 0)){       //Save the first trajectory to file
                 conf.saveXYZTraj(traj_file, i, "a");                    // TODO change back ((i+1)%XXX == 0) to 100
             }
         }
         if (l==0) conf.saveXYZTraj(traj_file, _simpar.steps, "c"); // Close XYZ traj_file
-
+        
     }//----------END OF RUNS-LOOP ----------------
 
 
@@ -159,8 +146,8 @@ int main(int argc, const char* argv[]){
 
     parameterFileAppend(runtime);
 
-	trajectoryfile.close();
-	xdrfile_close(_files.xd); //TODO xtc
+    trajectoryfile.close();
+    xdrfile_close(_files.xd); //TODO xtc
 
 
     return 0;

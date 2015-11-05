@@ -48,9 +48,9 @@ private:
     //BEND Potential
     bool _bendPot;
     double _kappaBend;
-    double _ubend;
-
-
+    double _ubend; 
+    
+    
 
 
     //COUNTERS AND INIT VALUES
@@ -65,7 +65,7 @@ private:
     Eigen::Vector3d _f_mob;   //store mobility and stochastic force
     Eigen::Vector3d _f_sto;
     Eigen::Vector3d _startpos;
-
+    
     //Lattice parameters
     std::vector<CPolySphere> _polySpheres;
     int _n_cellsAlongb;
@@ -74,12 +74,12 @@ private:
     int _N_cellParticles;
     double _boxsize;          // ALWAYS define boxsize through particlesize due to scaling!
     double _polyrad;
-
+    
     //Storage Matrices for distances and distance vectors
-    std::vector<std::vector<double> > _Mrabs;
+    std::vector<std::vector<double> > _Mrabs; 
     std::vector<std::vector<Eigen::Vector3d> > _Mrvec;
-
-
+        
+	
     // Bead-Spring interaction
     std::vector<std::vector<bool> > _springMatrix; // Bool parameter is true for spring-connected neighbors
     int _N_springInteractions;
@@ -105,7 +105,7 @@ public:
     void saveXYZTraj(string name, const int& move, string flag);
     void saveGRO(string foldername, const int& move);
     void saveCoordinates(std::ostream& trajectoryfile, unsigned int stepcount);
-    Eigen::Vector3d minImage(Eigen::Vector3d rij);
+    Eigen::Vector3d minImage(Eigen::Vector3d rij, double bhalf);
 	std::vector<double> getppos();
     double getUpot(){ return _upot; }
     string getTestCue(){ return _testcue; };
@@ -151,21 +151,23 @@ public:
 
 private:
     void setRanNumberGen(double seed);
+    
     void initConstants(){
         // Function to init constants, so this doesn't clutter the cpp file
         double minimalDistance = 1.122462*2*_polyrad; // The minimal Distance between neighboring spheres in the start configuration needs to be where the LJ pot is zero
-        _edgeParticles =  (int) ( _boxsize/_n_cellsAlongb/(minimalDistance) + 0.0001);   // FillEdge
+        _edgeParticles =  3; //(int) ( _boxsize/_n_cellsAlongb/(minimalDistance) + 0.0001); // FillEdge
         _N_cellParticles = 3 * _edgeParticles - 2;
         _N_polySpheres = _N_cellParticles * pow(_n_cellsAlongb,3);
         _mu_sto = sqrt( 2 * _timestep );                 //timestep for stochastic force
         _mu_sto_poly = sqrt( 2 * _timestep * _pradius/_polyrad );
-        _epsilonLJ = 1;  // in kT
+        _epsilonLJ = 1;  // in kT 
         _upot = 0;
         _r0SP = _boxsize/_n_cellsAlongb/_edgeParticles; //equilibrium distance for spring potential
         cout << "TODO: Adjust bending and spring parameters! Consider Schlagberger2006 and Metzler paper." << endl;
+        cout << "initConstants [OK]" << endl;
     }
-
-
+    
+    
     int makeIndex(int i, int nx, int ny, int nz){ // Transforms a NxKxM matrix index (i,j,k) to an array index ind = i + j*K + l*M
         assert(i < _N_cellParticles  && "**** Index i out of range in makeIndex()!");
         if (nx == -1) nx += _n_cellsAlongb;
@@ -176,7 +178,7 @@ private:
         if (nz == _n_cellsAlongb) nz = 0;
         return i + nx * _N_cellParticles + ny * _n_cellsAlongb * _N_cellParticles + nz * pow(_n_cellsAlongb,2) * _N_cellParticles;
     }
-
+    
     //POTENTIALS
     void addLJPot(const double r, double& U, double& Fr, const double r_steric){
         //Function to calculate the Lennard-Jones Potential
@@ -186,15 +188,15 @@ private:
             Fr +=  24  * _epsilonLJ / ( r * r ) * ( 2 * por6*por6 - por6 );
         }
     }
-
-    void addSpringPot(const double& r, double &U, double &Fr) {
+    
+    void addSpringPot(const double& r, double &U, double &Fr) { 
         U += (_kappaSP * pow(r - _r0SP, 2));
         Fr += (_kappaSP * 2 * (_r0SP/r - 1));
     }
-
-
+    
+    
     void calcBendPot(Eigen::Vector3d vec_r12, Eigen::Vector3d vec_r32, double r12, double r32, double& U, Eigen::Vector3d& fvec1, Eigen::Vector3d& fvec3){
-        // Function that returns the bending potential between three particles, where partice 2 is in the middle
+        // Function that returns the bending potential between three particles, where partice 2 is in the middle 
         Eigen::Vector3d vec_n = vec_r12.cross(vec_r32);
         double r12r32 = r12*r32;
        // cout << "theta = " << 180 / 3.14 * acos(vec_r12.dot(vec_r32)/r12r32) << endl;
@@ -202,34 +204,34 @@ private:
         fvec3 =  _kappaBend *  vec_n.cross(vec_r32) / (r32*r32*r12r32);
         U     =  _kappaBend *  ( 1 + vec_r12.dot(vec_r32)/r12r32 );
     }
-
-
-
-
-
+    
+    
+    
+    
+    
     // LATTICE INITIALIZATION FUNCTIONS
-
+    
     /******* TEMPLATE
         - overwrite neccessary parameters like _r0SP
         - Fill edgeParticles Vector
         - resize storage matrices/vectors
         - init 2p and 3p interaction vectors / matrices
     */
-
+    
     void initSemiFlexibleLattice(){
         assert(_edgeParticles > 1 && "**** Edgeparticles need to be more than 1 for semiflexible lattice!");
         _polySpheres.clear();
         Eigen::Vector3d nvec;
         Eigen::Vector3d ijk;
-
+    
         // init PolySpheres
         std::vector<Eigen::Vector3d> zeroPos( _N_cellParticles , Eigen::Vector3d::Zero() );
     	// store the edgeParticle positions in first cell in zeroPos
         assert(((_boxsize/_n_cellsAlongb) / _edgeParticles > 2*_pradius)  && "**** Error: Overlap between polySpheres!");
     	for (int i = 1; i < _edgeParticles; i++){
-    		double tmp = i * (_boxsize/_n_cellsAlongb) / _edgeParticles;
+    		double tmp = i * _r0SP;
     		zeroPos[i](0) = tmp;
-    		zeroPos[i + (_edgeParticles - 1)](1) = tmp;
+    		zeroPos[i + (_edgeParticles - 1)](1) = tmp;  
     		zeroPos[i + 2 * (_edgeParticles - 1)](2) = tmp;
     	}
     	for (int nz=0; nz < _n_cellsAlongb; nz++){
@@ -243,25 +245,25 @@ private:
             }
     	}
         assert(_N_polySpheres == _polySpheres.size()  && "**** Size of _polySpheres vector is incorrect, i.e. not equal to _N_polySpheres!");
-
-        //resize storage containers for distances and vectors
-        _Mrvec.resize(_N_polySpheres+1);
-        _Mrabs.resize(_N_polySpheres+1);
-        for (int i=0; i<_N_polySpheres+1; i++){
-            _Mrvec[i].resize(_N_polySpheres+1);
-            _Mrabs[i].resize(_N_polySpheres+1);
+        
+        //resize storage containers for distances and vectors of polymer spheres
+        _Mrvec.resize(_N_polySpheres);
+        _Mrabs.resize(_N_polySpheres);
+        for (int i=0; i<_N_polySpheres; i++){
+            _Mrvec[i].resize(_N_polySpheres);
+            _Mrabs[i].resize(_N_polySpheres);
         }
-
+    
         // Init two-particle spring and three-particle bending interaction Vectors
         _N_springInteractions = (3 * _edgeParticles) * pow(_n_cellsAlongb,3);
         _MspringTupel.resize(_N_springInteractions);
-        _MbendTupel.resize(_N_springInteractions);
+        _MbendTupel.resize(_N_springInteractions); // _N_springInteractions == N bendInteractions
         // Init two-partice spring Matris to all false
         _springMatrix.resize(_N_polySpheres);
         for (int i=0;i<_N_polySpheres;i++){
             _springMatrix[i].resize(_N_polySpheres,false);
         }
-
+        
         int counter = 0;
         int ne = _edgeParticles - 1; // "extra particles" between 0 particles. This I use in my paper version for the code
     	for (int nz=0; nz < _n_cellsAlongb; nz++){
@@ -269,19 +271,33 @@ private:
                 for (int nx=0; nx < _n_cellsAlongb; nx++){
                     nvec << nx, ny, nz; // Position of 0 corner of the simulation box
                     for (int i = 0; i < _N_cellParticles; i++){
+                        //cout << nz << " " << ny << " " << nx << " " << i << " " << endl;  //TODO tmp
                         // particle at 0 position of cell - 3 right neighbors and 3 bending interactions
+                        int currentIndex = makeIndex(i,nx,ny,nz);
+                        int rightneighbor; //stores index of rightneighbor
+                        Eigen::Vector3d pbc_shift = Eigen::Vector3d::Zero();
                         if (i == 0){
                             for (int t=0; t<3; t++){
-                                int a = 0, b = 0, c = 0;
+                                int a = 0, b = 0, c = 0; 
                                 if (t==0) a=-1;
                                 else if (t==1) b=-1;
                                 else c=-1;
-                                _springMatrix[makeIndex(i,nx,ny,nz)][makeIndex(1+ne*t,nx,ny,nz)] = true;
-                                _MspringTupel[counter][0] = makeIndex(i,nx,ny,nz);
-                                _MspringTupel[counter][1] = makeIndex(1+ne*t,nx,ny,nz);
+                                rightneighbor = makeIndex(1+ne*t,nx,ny,nz);
+                                //cout << ".....\n" << currentIndex << "\n" << rightneighbor << "\n..." << endl;
+                                _springMatrix[currentIndex][rightneighbor] = true;
+                                //cout << "1" << endl;
+                                _MspringTupel[counter][0] = currentIndex;
+                                //cout << "2" << endl;
+                                _MspringTupel[counter][1] = rightneighbor;
+                                //cout << "3" << endl;
                                 _MbendTupel[counter][0] = makeIndex(ne+ne*t,nx+a,ny+b,nz+c);
-                                _MbendTupel[counter][1] = _MspringTupel[counter][0];
-                                _MbendTupel[counter][2] = _MspringTupel[counter][1];
+                                //cout << "33" << endl;
+                                _MbendTupel[counter][1] = currentIndex;//_MspringTupel[counter][0];
+                                //cout << "34" << endl;
+                                _MbendTupel[counter][2] = rightneighbor;//_MspringTupel[counter][1];
+                                //cout << "35" << endl;
+                                _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex);
+                                //cout << "36" << endl;
                                 counter++;
                             }
                         }
@@ -294,12 +310,14 @@ private:
                                 cout << "Error in CConfiguration initSemiFlexLattice() !!!!" << endl;
                                 abort();
                             }
-                            _springMatrix[makeIndex(i,nx,ny,nz)][makeIndex(0,nx+a,ny+b,nz+c)] = true;
-                            _MspringTupel[counter][0] = makeIndex(i,nx,ny,nz);
-                            _MspringTupel[counter][1] = makeIndex(0,nx+a,ny+b,nz+c);
+                            rightneighbor = makeIndex(0,nx+a,ny+b,nz+c);
+                            _springMatrix[currentIndex][rightneighbor] = true;
+                            _MspringTupel[counter][0] = currentIndex;
+                            _MspringTupel[counter][1] = rightneighbor;
                             _MbendTupel[counter][0] = makeIndex(0,nx,ny,nz);
                             _MbendTupel[counter][1] = _MspringTupel[counter][0];
                             _MbendTupel[counter][2] = _MspringTupel[counter][1];
+                            _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex);
                             counter++;
                         }
                         else if (i % ne == 0){ // if i = ne, 2ne or 3ne
@@ -311,23 +329,28 @@ private:
                                 cout << "Error in CConfiguration initSemiFlexLattice() !!!!" << endl;
                                 abort();
                             }
-                            _springMatrix[makeIndex(i,nx,ny,nz)][makeIndex(0,nx+a,ny+b,nz+c)] = true;
-                            _MspringTupel[counter][0] = makeIndex(i,nx,ny,nz);
-                            _MspringTupel[counter][1] = makeIndex(0,nx+a,ny+b,nz+c);
+                            rightneighbor = makeIndex(0,nx+a,ny+b,nz+c);
+                            _springMatrix[currentIndex][rightneighbor] = true;
+                            _MspringTupel[counter][0] = currentIndex;
+                            _MspringTupel[counter][1] = rightneighbor;
                             _MbendTupel[counter][0] = makeIndex(i-1,nx,ny,nz);
                             _MbendTupel[counter][1] = _MspringTupel[counter][0];
                             _MbendTupel[counter][2] = _MspringTupel[counter][1];
+                            pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
+                            _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
                             counter++;
                         }
                         else  {
                             int a = i-1;
                             if ((i == ne+1) || (i == 2*ne+1)) a = 0;
-                            _springMatrix[makeIndex(i,nx,ny,nz)][makeIndex(i+1,nx,ny,nz)] = true;
-                            _MspringTupel[counter][0] = makeIndex(i,nx,ny,nz);
-                            _MspringTupel[counter][1] = makeIndex(i+1,nx,ny,nz);
+                            rightneighbor = makeIndex(i+1,nx,ny,nz);
+                            _springMatrix[currentIndex][rightneighbor] = true;
+                            _MspringTupel[counter][0] = currentIndex;
+                            _MspringTupel[counter][1] = rightneighbor;
                             _MbendTupel[counter][0] = makeIndex(a,nx,ny,nz);
                             _MbendTupel[counter][1] = _MspringTupel[counter][0];
                             _MbendTupel[counter][2] = _MspringTupel[counter][1];
+                            _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex);
                             counter++;
                         }
                     }
@@ -336,8 +359,12 @@ private:
         }
         assert((counter == _N_springInteractions) && "**** final counter Not equal size as _N_springInteractions");
         //printSpringMatrix();
+        // for (int i=0;i<_N_polySpheres;i++){
+//             cout << _polySpheres[i].n_rn << endl;
+//         }
+        cout << "initSemiFlexLattice [OK]" << endl;
     }
-
+    
 
     void initZhouPolyspheres(){
         // initialize the PolymerSphere positions
@@ -352,7 +379,7 @@ private:
             }
     	}
     }
-
+    
     void initZhouInteractionMatrix(){
         assert(_N_polySpheres != 0 && "**** _N_polySpheres is zero. Can't initialize interaction Matrix!");
         Eigen::Vector3i nvec;
@@ -362,9 +389,9 @@ private:
         for (int i=0;i<_N_polySpheres;i++){
             _springMatrix[i].resize(_N_polySpheres,false);
         }
-
+    
         // Change appropriate spring Matrix parts to true
-
+    
         // init cubic lattice w spheres in corners
         _r0SP = _boxsize/_n_cellsAlongb; //equilibrium distance for spring potential Leave this here since it belongs to cubic lattice interactionMatrix
     	for (int nz=0; nz < _n_cellsAlongb; nz++){
@@ -379,7 +406,7 @@ private:
                         if (ijk(n) == -1) ijk(n) += _n_cellsAlongb;  //periodic BC
                         ijk_to_m = ijk(0) + ijk(1) * _n_cellsAlongb + ijk(2)*pow(_n_cellsAlongb,2);
                         _springMatrix[nvec_to_m][ijk_to_m] = true;
-
+        
                         ijk = nvec;
                         ijk(n) = nvec(n) + 1;  //neighbor in +n direction
                         if (ijk(n) == _n_cellsAlongb ) ijk(n) -= _n_cellsAlongb;  //periodic BC
@@ -390,8 +417,8 @@ private:
             }
     	}
     }
-
-
+    
+    
     //MISC
     template<typename T>
     string toString(const T& value){
@@ -417,9 +444,7 @@ private:
             cout <<" ]"<< endl;
         }
     }
-
-
-
+    
 
 };
 
