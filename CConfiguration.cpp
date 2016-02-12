@@ -41,7 +41,7 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
     initSemiFlexibleLattice();
     cout << "NOTE: Implement periodic boundary conditions for the polySpheres. I.e. checkBoxCrossing function! " << endl;
     // TEST CUE to modify the directory the output data is written to!!
-    _testcue = "3Edge";
+    _testcue = "4Edge";
     //if ( _n_cellsAlongb != 1 ) _testcue = "n" + toString(_n_cellsAlongb);
 
 }
