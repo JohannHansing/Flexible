@@ -1,0 +1,10 @@
+.DS_Store
+CMakeLists.txt
+Debug/
+Release/
+headers/.DS_Store
+headers/._*
+jobs/
+CodeBeforeMerge/
+.CConfiguration.cpp.swp
+._*
