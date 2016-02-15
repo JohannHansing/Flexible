@@ -45,6 +45,7 @@ struct model_param_desc {
     double urange;
     double ustrength;
     int n_cells;  // Number of cells along one edge of the simulation box
+    int n_edge;
     double kspring;
     double kbend;
 };

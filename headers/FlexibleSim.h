@@ -141,7 +141,8 @@ void createDataFolder(string testcue){
     //sprintf(range, "%.3f", _modelpar.potRange);
     //In the definition of folder, the addition has to START WITH A STRING! for the compiler to know what to do (left to right).
     string folder = "sim_data";
-    if (!testcue.empty()) folder = folder + "/test/" + testcue;
+    if (!testcue.empty()) folder += testcue;
+    folder += "/n_cells" + toString(_modelpar.n_cells);
     folder = folder
             + "/dt" + toString(_simpar.timestep)
             + "/t" + toString(_simpar.simtime)
@@ -185,8 +186,9 @@ void parameterFile(string testcue){
     parameterFile << "a " << _modelpar.polymersize << endl;
     parameterFile << "ks " << _modelpar.kspring << endl;
     parameterFile << "kb " << _modelpar.kbend << endl;
- //   parameterFile << "k " << _modelpar.potRange << endl;
- //   parameterFile << "U_0 " << _modelpar.potStrength << endl;
+    parameterFile << "n_cells " << _modelpar.n_cells << endl;
+    parameterFile << "n_edge " << _modelpar.n_edge << endl;
+
 
     parameterFile.close();
 }

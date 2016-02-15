@@ -32,7 +32,7 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
     }
     cout << "TODO IMPLEMENT OVERLAP TEST FUNCTION BETWEEN PARTICLE AND POLYMER LATTICE AT START OF SIMULATION!!!" << endl;
     
-    initConstants();
+    initConstants(modelpar);
     
     // init random number generator
     setRanNumberGen(0);
@@ -41,8 +41,8 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
     initSemiFlexibleLattice();
     cout << "NOTE: Implement periodic boundary conditions for the polySpheres. I.e. checkBoxCrossing function! " << endl;
     // TEST CUE to modify the directory the output data is written to!!
-    _testcue = "4Edge";
-    //if ( _n_cellsAlongb != 1 ) _testcue = "n" + toString(_n_cellsAlongb);
+    _testcue += "";
+    _testcue = "/n_edge" + _edgeParticles;
 
 }
 

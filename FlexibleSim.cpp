@@ -44,6 +44,7 @@ int main(int argc, const char* argv[]){
     _modelpar.ustrength = atof( argv[boolpar+8] );
     _modelpar.kspring = atof( argv[boolpar+9] );
     _modelpar.kbend = atof( argv[boolpar+10] );
+    _modelpar.n_edge = atoi(  argv[boolpar+11] );
     _modelpar.boxsize = _modelpar.n_cells * 10.;
 
 

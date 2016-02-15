@@ -151,11 +151,12 @@ public:
 
 private:
     void setRanNumberGen(double seed);
-    
-    void initConstants(){
+
+    void initConstants(model_param_desc modelpar){
         // Function to init constants, so this doesn't clutter the cpp file
         double minimalDistance = 1.122462*2*_polyrad; // The minimal Distance between neighboring spheres in the start configuration needs to be where the LJ pot is zero
-        _edgeParticles =  3; //(int) ( _boxsize/_n_cellsAlongb/(minimalDistance) + 0.0001); // FillEdge
+        if (modelpar.n_edge == 0) _edgeParticles =  (int) ( _boxsize/_n_cellsAlongb/(minimalDistance) + 0.0001); // FillEdge
+        else _edgeParticles = modelpar.n_edge;
         _N_cellParticles = 3 * _edgeParticles - 2;
         _N_polySpheres = _N_cellParticles * pow(_n_cellsAlongb,3);
         _mu_sto = sqrt( 2 * _timestep );                 //timestep for stochastic force
