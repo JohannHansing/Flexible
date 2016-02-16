@@ -108,7 +108,7 @@ void CConfiguration::calcMobilityForces(){
             addSpringPot(rij, _uspring, frtmp);
             _polySpheres[i].f_mob += - frtmp * _Mrvec[j][i];
             _polySpheres[j].f_mob += frtmp * _Mrvec[j][i];
-            if (rij>bhalf) {cout << "i=" << i << " -- j=" << j << " -- r=" << rij << endl;}
+            //if (rij>bhalf) {cout << "i=" << i << " -- j=" << j << " -- r=" << rij << endl;}
         }
     }
 
