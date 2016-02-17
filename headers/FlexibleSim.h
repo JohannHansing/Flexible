@@ -177,7 +177,6 @@ void parameterFile(string testcue){
     parameterFile << "Sim_dir " << _files.folder << endl;
     if (!testcue.empty()) parameterFile << "Test cue " << testcue << endl;
     parameterFile << "p " << _modelpar.particlesize << endl;
-    parameterFile << "n " << _modelpar.n_cells << endl;
     parameterFile << "b " << _modelpar.boxsize << endl;
     parameterFile << "dt " << _simpar.timestep << endl;
     parameterFile << "runs " << _simpar.runs << endl;

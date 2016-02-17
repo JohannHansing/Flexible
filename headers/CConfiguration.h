@@ -170,7 +170,10 @@ private:
     
     
     int makeIndex(int i, int nx, int ny, int nz){ // Transforms a NxKxM matrix index (i,j,k) to an array index ind = i + j*K + l*M
-        assert(i < _N_cellParticles  && "**** Index i out of range in makeIndex()!");
+        if (i >= _N_cellParticles){
+            cout<<"**** Error: Index i out of range in makeIndex()!" << endl;
+            throw 13;
+        }
         if (nx == -1) nx += _n_cellsAlongb;
         if (ny == -1) ny += _n_cellsAlongb;
         if (nz == -1) nz += _n_cellsAlongb;
@@ -220,7 +223,7 @@ private:
     */
     
     void initSemiFlexibleLattice(){
-        assert(_edgeParticles > 1 && "**** Edgeparticles need to be more than 1 for semiflexible lattice!");
+        //assert(_edgeParticles > 1 && "**** Edgeparticles need to be more than 1 for semiflexible lattice!");
         _polySpheres.clear();
         Eigen::Vector3d nvec;
         Eigen::Vector3d ijk;
@@ -277,12 +280,37 @@ private:
                         int currentIndex = makeIndex(i,nx,ny,nz);
                         int rightneighbor; //stores index of rightneighbor
                         Eigen::Vector3d pbc_shift = Eigen::Vector3d::Zero();
-                        if (i == 0){
-                            for (int t=0; t<3; t++){
+                        if (_edgeParticles == 1){ //Case of only particles in the corners of the cells
+                            for (int t=0; t<3; t++){//sum over 3 neighbors
                                 int a = 0, b = 0, c = 0; 
-                                if (t==0) a=-1;
-                                else if (t==1) b=-1;
-                                else c=-1;
+                                if (t==0) a=1;
+                                else if (t==1) b=1;
+                                else c=1;
+                                rightneighbor = makeIndex(0,nx+a,ny+b,nz+c);
+                                //cout << ".....\n" << currentIndex << "\n" << rightneighbor << "\n..." << endl;
+                                _springMatrix[currentIndex][rightneighbor] = true;
+                                //cout << "1" << endl;
+                                _MspringTupel[counter][0] = currentIndex;
+                                //cout << "2" << endl;
+                                _MspringTupel[counter][1] = rightneighbor;
+                                //cout << "3" << endl;
+                                _MbendTupel[counter][0] = makeIndex(0,nx-a,ny-b,nz-c);
+                                //cout << "33" << endl;
+                                _MbendTupel[counter][1] = currentIndex;//_MspringTupel[counter][0];
+                                //cout << "34" << endl;
+                                _MbendTupel[counter][2] = rightneighbor;//_MspringTupel[counter][1];
+                                //cout << "35" << endl;
+                                _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex);
+                                //cout << "36" << endl;
+                                counter++;
+                            }
+                        }
+                        else if (i == 0){
+                            for (int t=0; t<3; t++){//sum over 3 neighbors
+                                int a = 0, b = 0, c = 0; 
+                                if (t==0) a=1;
+                                else if (t==1) b=1;
+                                else c=1;
                                 rightneighbor = makeIndex(1+ne*t,nx,ny,nz);
                                 //cout << ".....\n" << currentIndex << "\n" << rightneighbor << "\n..." << endl;
                                 _springMatrix[currentIndex][rightneighbor] = true;
@@ -291,7 +319,7 @@ private:
                                 //cout << "2" << endl;
                                 _MspringTupel[counter][1] = rightneighbor;
                                 //cout << "3" << endl;
-                                _MbendTupel[counter][0] = makeIndex(ne+ne*t,nx+a,ny+b,nz+c);
+                                _MbendTupel[counter][0] = makeIndex(ne+ne*t,nx-a,ny-b,nz-c);
                                 //cout << "33" << endl;
                                 _MbendTupel[counter][1] = currentIndex;//_MspringTupel[counter][0];
                                 //cout << "34" << endl;
@@ -358,7 +386,10 @@ private:
                 }
             }
         }
-        assert((counter == _N_springInteractions) && "**** final counter Not equal size as _N_springInteractions");
+        if (counter != _N_springInteractions){
+            cout << "**** Error: final counter Not equal size as _N_springInteractions!" << endl;
+            throw 14;
+        }
         //printSpringMatrix();
         // for (int i=0;i<_N_polySpheres;i++){
 //             cout << _polySpheres[i].n_rn << endl;
