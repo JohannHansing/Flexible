@@ -106,7 +106,7 @@ void CConfiguration::calcMobilityForces(){
             _Mrabs[i][j] = rij;
             
             addSpringPot(rij, _uspring, frtmp);
-if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << j << endl;
+            //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << j << endl;
             _polySpheres[i].f_mob += - frtmp * _Mrvec[j][i];
             _polySpheres[j].f_mob += frtmp * _Mrvec[j][i];
             //if (rij>bhalf) {cout << "i=" << i << " -- j=" << j << " -- r=" << rij << endl;}
