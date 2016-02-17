@@ -27,7 +27,7 @@ public:
     Eigen::Vector3d pos;  //fixed length array for position, this allocates less memory than a (dynamic) vector 
     Eigen::Vector3d f_mob; // Vector to store the mobility force on the polysphere
     Eigen::Vector3d f_sto; // Stores random vector for displacement of polySPheres
-    Eigen::Vector3d image_corr; // Correction vector for polySpheres that have a right neighbor in another simulation box (periodic b.c.)
+    std::vector<Eigen::Vector3d> image_corr; // Correction vector for polySpheres that have a right neighbor in another simulation box (periodic b.c.)
     int n_rn; // number of right neigbors for spring interaction. Initialized to zero and incremented by 1 for each rightneigbor added.
     bool image[3];
     int i_rn[3]; // indexes of right neighbors are stored here. 
@@ -35,9 +35,9 @@ public:
     
     void addRightNeighbor(int rightneighborIndex, int myindex, Eigen::Vector3d pbc_shift = Eigen::Vector3d::Zero()){
         if ((pbc_shift != Eigen::Vector3d::Zero()) && (rightneighborIndex < myindex)){
-            image_corr = pbc_shift;
+            image_corr[n_rn] = pbc_shift;
             image[n_rn] = true;
-            //cout << pbc_shift << endl;
+            //cout << "shift for particle " << myindex << " with neighbor " << rightneighborindex  << endl;
         }
         else image[n_rn] = false;
         

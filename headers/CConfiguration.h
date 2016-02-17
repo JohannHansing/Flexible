@@ -194,6 +194,8 @@ private:
     }
     
     void addSpringPot(const double& r, double &U, double &Fr) { 
+        double u = _kappaSP * pow(r - _r0SP, 2);
+        if (u > 10000) cout << "U = " << u << "r = " <<  r << endl;
         U += (_kappaSP * pow(r - _r0SP, 2));
         Fr += (_kappaSP * 2 * (_r0SP/r - 1));
     }
@@ -280,7 +282,7 @@ private:
                         int currentIndex = makeIndex(i,nx,ny,nz);
                         int rightneighbor; //stores index of rightneighbor
                         Eigen::Vector3d pbc_shift = Eigen::Vector3d::Zero();
-                        if (_edgeParticles == 1){ //Case of only particles in the corners of the cells
+                        if (_N_cellParticles == 1){ //Case of only particles in the corners of the cells
                             for (int t=0; t<3; t++){//sum over 3 neighbors
                                 int a = 0, b = 0, c = 0; 
                                 if (t==0) a=1;
@@ -300,7 +302,8 @@ private:
                                 //cout << "34" << endl;
                                 _MbendTupel[counter][2] = rightneighbor;//_MspringTupel[counter][1];
                                 //cout << "35" << endl;
-                                _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex);
+                                pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
+                                _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
                                 //cout << "36" << endl;
                                 counter++;
                             }
@@ -346,7 +349,8 @@ private:
                             _MbendTupel[counter][0] = makeIndex(0,nx,ny,nz);
                             _MbendTupel[counter][1] = _MspringTupel[counter][0];
                             _MbendTupel[counter][2] = _MspringTupel[counter][1];
-                            _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex);
+                            pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
+                            _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
                             counter++;
                         }
                         else if (i % ne == 0){ // if i = ne, 2ne or 3ne
@@ -390,8 +394,8 @@ private:
             cout << "**** Error: final counter Not equal size as _N_springInteractions!" << endl;
             throw 14;
         }
-        //printSpringMatrix();
-        // for (int i=0;i<_N_polySpheres;i++){
+//        printSpringMatrix();
+//         for (int i=0;i<_N_polySpheres;i++){
 //             cout << _polySpheres[i].n_rn << endl;
 //         }
         cout << "initSemiFlexLattice [OK]" << endl;
@@ -461,7 +465,7 @@ private:
     void printSpringMatrix(){
         cout << "*********** SPRING MATRIX ************" << endl;
         for (unsigned int i = 0; i < _MspringTupel.size() ; i++) {
-            cout << "[ ";
+            cout << i << " - [ ";
             for (unsigned int j = 0; j < 2 ; j++) {
                 cout << _MspringTupel[i][j] << " , ";
             }
