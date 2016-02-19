@@ -194,8 +194,8 @@ private:
     }
     
     void addSpringPot(const double& r, double &U, double &Fr) { 
-        double u = _kappaSP * pow(r - _r0SP, 2);
-        if (u > 10000) cout << "U = " << u << "r = " <<  r << endl;
+        //double u = _kappaSP * pow(r - _r0SP, 2);
+        //if (u > 10000) cout << "U = " << u << "r = " <<  r << endl;
         U += (_kappaSP * pow(r - _r0SP, 2));
         Fr += (_kappaSP * 2 * (_r0SP/r - 1));
     }
