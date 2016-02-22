@@ -139,7 +139,7 @@ public:
         fprintf(_groFile, "%5d%-5s%5s%5d%8.3f%8.3f%8.3f\n", 1, "TRACR", "H", 1, _ppos(0), _ppos(1),  _ppos(2));
         // polymer particles
         for (unsigned int i = 0; i < _N_polySpheres; i++) {
-            rtmp = _polySpheres[i].pos;//+boxCoordinates;
+            rtmp = _polySpheres[i].pos_abs;//+boxCoordinates;
             fprintf(_groFile, "%5d%-5s%5s%5d%8.3f%8.3f%8.3f\n", 2, "LATTC", "O", i+2, rtmp(0), rtmp(1),  rtmp(2));
         }
         fprintf(_groFile, ";%10.5f%10.5f%10.5f\n", _boxsize, _boxsize, _boxsize);   // Print Orthorombic Box Vectors as comment into gro File
@@ -194,8 +194,8 @@ private:
     }
     
     void addSpringPot(const double& r, double &U, double &Fr) { 
-        double u = _kappaSP * pow(r - _r0SP, 2);
-        if (u > 10000) cout << "U = " << u << "r = " <<  r << endl;
+        //double u = _kappaSP * pow(r - _r0SP, 2);
+        //if (u > 10000) cout << "U = " << u << "r = " <<  r << endl;
         U += (_kappaSP * pow(r - _r0SP, 2));
         Fr += (_kappaSP * 2 * (_r0SP/r - 1));
     }

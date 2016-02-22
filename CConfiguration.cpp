@@ -57,13 +57,16 @@ void CConfiguration::calcMobilityForces(){
     _ubend=0;
     _uspring=0;
     // Calculate two-particle interactions between tracer and edgeparticles
+    int rtracerpoly = (_pradius+_polyrad)/2.;
+    
+    // LENNARD JONES INTERACTION TRACER
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
         _polySpheres[i].f_mob  = Vector3d::Zero();
         frtmp = 0;
-        vec_rij = minImage(_polySpheres[i].pos - _ppos, bhalf);
+        vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos, bhalf);
         rij = vec_rij.norm();
         
-        addLJPot(rij, _uLJ, frtmp, _pradius+_polyrad);
+        addLJPot(rij, _uLJ, frtmp, rtracerpoly);
         
         // add total directional forces
         _f_mob += - frtmp * vec_rij;
@@ -71,26 +74,25 @@ void CConfiguration::calcMobilityForces(){
     }
     utmp = _uLJ; // store total LJ potential of tracer
     
-    // Calculate 2p interaction for edgeParticles
+    // LENNARD JONES INTERACTION POLYSPHERES
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
         //nSpringPot=0;
         for (unsigned int j = i+1; j < _N_polySpheres ; j++) {
             frtmp = 0;
-            vec_rij = _polySpheres[j].pos - _polySpheres[i].pos;
+            vec_rij = _polySpheres[j].pos_abs - _polySpheres[i].pos_abs;
             _Mrvec[j][i] = vec_rij; // stores vector going from _polySphere[i] to _polySphere[j]
             _Mrvec[i][j] = -vec_rij; 
             
-            // LJ Interaction
             vec_rij_min = minImage(vec_rij, bhalf);  // For LJ interaction minImage needs to be employed
             rij_min = vec_rij_min.norm();
-            addLJPot(rij_min, utmp, frtmp, 2 * _polyrad);
+            addLJPot(rij_min, utmp, frtmp, _polyrad);
             _polySpheres[i].f_mob += - frtmp * vec_rij_min;
             _polySpheres[j].f_mob += frtmp * vec_rij_min;
         }
     }
     
 
-    // Spring interaction
+    // SPRING INTERACTION
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
         for (int k=0; k<_polySpheres[i].n_rn; k++){
             frtmp = 0;
@@ -167,13 +169,19 @@ void CConfiguration::updateStartpos(){
 
 void CConfiguration::makeStep(){
     //move the tracer particle according to the forces and record trajectory like watched by outsider
+    Vector3d dr;
     _prevpos = _ppos;
     _ppos += _f_mob * _timestep + _f_sto * _mu_sto;
     
     // move polymerSperes
-    double mu_correction = _pradius/_polyrad;
-    for (unsigned int i = 0; i < _N_polySpheres ; i++) {
-        _polySpheres[i].pos += _polySpheres[i].f_mob * _timestep * mu_correction + _polySpheres[i].f_sto * _mu_sto_poly;
+    if (_kappaSP != 0.0){
+        double mu_correction = _pradius/_polyrad;
+        for (unsigned int i = 0; i < _N_polySpheres ; i++) {
+            dr = _polySpheres[i].f_mob * _timestep * mu_correction + _polySpheres[i].f_sto * _mu_sto_poly;
+            //shift both the absolute position of the polyspheres (never shifted during sim) as well as the pbc corrected position by the same amount dr.
+           _polySpheres[i].pos_abs += dr;
+           _polySpheres[i].pos_pbc += dr;
+        }
     }
     if ((_prevpos-_ppos).squaredNorm() > 1 ){
         cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos 
@@ -197,6 +205,14 @@ void CConfiguration::checkBoxCrossing(){
         else if (_ppos(i) > _boxsize){
             _ppos(i) -= _boxsize;
             _boxnumberXYZ[i] += 1;
+        }
+        for (int k=0;k<_N_polySpheres;k++){
+            if (_polySpheres[k].pos_pbc(i) < 0){
+                _polySpheres[k].pos_pbc(i) += _boxsize;
+            }
+            else if (_polySpheres[k].pos_pbc(i) > _boxsize){
+                _polySpheres[k].pos_pbc(i) -= _boxsize;
+            }
         }
     }
 }
@@ -274,7 +290,7 @@ void CConfiguration::saveXYZTraj(string name, const int& move, string flag) {
     fprintf(m_traj_file, "%3s%9.3f%9.3f%9.3f \n","O", rtmp(0), rtmp(1),  rtmp(2));
     // polymer particles
     for (unsigned int i = 0; i < _N_polySpheres; i++) {
-        rtmp = _polySpheres[i].pos;//+boxCoordinates;
+        rtmp = _polySpheres[i].pos_abs;//+boxCoordinates;
         fprintf(m_traj_file, "%3s%9.3f%9.3f%9.3f \n","H", rtmp(0), rtmp(1),  rtmp(2));
     }
 
@@ -286,6 +302,7 @@ void CConfiguration::saveXYZTraj(string name, const int& move, string flag) {
 }
 
 void CConfiguration::save_traj_step(XDRFILE *xd, const int stepcount) {
+    cout << "Warning! save_traj_step: So far saves the position of the particles relative to simulation box! Need to add _boxsize." << endl;
     // copy necessary to convert double to float
     std::vector<std::array<float, 3> > rvecs(_N_polySpheres+1);  //TODO xtc TAKE CARE OF THIS
     // std::copy(
@@ -299,7 +316,7 @@ void CConfiguration::save_traj_step(XDRFILE *xd, const int stepcount) {
     rvecs[0][2] = (float)_ppos(2);
     for (int i=0; i<_N_polySpheres; i++){
         for (int k=0; k <3; k++){
-            rvecs[i+1][k] = (float)_polySpheres[i].pos(k);
+            rvecs[i+1][k] = (float)_polySpheres[i].pos_pbc(k);
         }
     }
 

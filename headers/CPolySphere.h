@@ -24,7 +24,8 @@ public:
     CPolySphere( Eigen::Vector3d PolySpherePos);
         
     // Public variables
-    Eigen::Vector3d pos;  //fixed length array for position, this allocates less memory than a (dynamic) vector 
+    Eigen::Vector3d pos_abs;  // pos_abs is the absolute position of the network bead relative to each other. It does not change, when the beads leave the simulation box
+    Eigen::Vector3d pos_pbc;  // pos_pbc is the position of network bead inside the simulation box. It is shifted, if the sphere crosses the border of the sim box.
     Eigen::Vector3d f_mob; // Vector to store the mobility force on the polysphere
     Eigen::Vector3d f_sto; // Stores random vector for displacement of polySPheres
     std::vector<Eigen::Vector3d> image_corr; // Correction vector for polySpheres that have a right neighbor in another simulation box (periodic b.c.)

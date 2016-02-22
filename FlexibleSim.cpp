@@ -128,7 +128,7 @@ int main(int argc, const char* argv[]){
             // Write trajectory to trajectoryfile
             if (stepcount%trajout == 0) {
                 conf.saveCoordinates(trajectoryfile, stepcount);
-                conf.save_traj_step(_files.xd,i);  //TODO xtc
+                //conf.save_traj_step(_files.xd,i);  //TODO xtc
             }
             if (((i+1)%100 == 0) && (l == 0)){       //Save the first trajectory to file
                 conf.saveXYZTraj(traj_file, i, "a");                    // TODO change back ((i+1)%XXX == 0) to 100
