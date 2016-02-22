@@ -57,13 +57,14 @@ void CConfiguration::calcMobilityForces(){
     _ubend=0;
     _uspring=0;
     // Calculate two-particle interactions between tracer and edgeparticles
+    int rtracerpoly = (_pradius+_polyrad)/2.;
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
         _polySpheres[i].f_mob  = Vector3d::Zero();
         frtmp = 0;
         vec_rij = minImage(_polySpheres[i].pos - _ppos, bhalf);
         rij = vec_rij.norm();
         
-        addLJPot(rij, _uLJ, frtmp, _pradius+_polyrad);
+        addLJPot(rij, _uLJ, frtmp, rtracerpoly);
         
         // add total directional forces
         _f_mob += - frtmp * vec_rij;
@@ -83,7 +84,7 @@ void CConfiguration::calcMobilityForces(){
             // LJ Interaction
             vec_rij_min = minImage(vec_rij, bhalf);  // For LJ interaction minImage needs to be employed
             rij_min = vec_rij_min.norm();
-            addLJPot(rij_min, utmp, frtmp, 2 * _polyrad);
+            addLJPot(rij_min, utmp, frtmp, _polyrad);
             _polySpheres[i].f_mob += - frtmp * vec_rij_min;
             _polySpheres[j].f_mob += frtmp * vec_rij_min;
         }
@@ -171,9 +172,11 @@ void CConfiguration::makeStep(){
     _ppos += _f_mob * _timestep + _f_sto * _mu_sto;
     
     // move polymerSperes
-    double mu_correction = _pradius/_polyrad;
-    for (unsigned int i = 0; i < _N_polySpheres ; i++) {
-        _polySpheres[i].pos += _polySpheres[i].f_mob * _timestep * mu_correction + _polySpheres[i].f_sto * _mu_sto_poly;
+    if (_kappaSP != 0.0){
+        double mu_correction = _pradius/_polyrad;
+        for (unsigned int i = 0; i < _N_polySpheres ; i++) {
+           _polySpheres[i].pos += _polySpheres[i].f_mob * _timestep * mu_correction + _polySpheres[i].f_sto * _mu_sto_poly;
+        }
     }
     if ((_prevpos-_ppos).squaredNorm() > 1 ){
         cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos 
