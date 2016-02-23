@@ -57,8 +57,6 @@ void CConfiguration::calcMobilityForces(){
     _ubend=0;
     _uspring=0;
     // Calculate two-particle interactions between tracer and edgeparticles
-    double rtracerpoly = (_pradius+_polyrad)/2.;
-    
     // LENNARD JONES INTERACTION TRACER
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
         _polySpheres[i].f_mob  = Vector3d::Zero();
@@ -66,7 +64,7 @@ void CConfiguration::calcMobilityForces(){
         vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos, bhalf);
         rij = vec_rij.norm();
         
-        addLJPot(rij, _uLJ, frtmp, rtracerpoly);
+        addLJPot(rij, _uLJ, frtmp, _pradius+_polyrad);
         
         // add total directional forces
         _f_mob += - frtmp * vec_rij;
@@ -85,7 +83,7 @@ void CConfiguration::calcMobilityForces(){
             
             vec_rij_min = minImage(vec_rij, bhalf);  // For LJ interaction minImage needs to be employed
             rij_min = vec_rij_min.norm();
-            addLJPot(rij_min, utmp, frtmp, _polyrad);
+            addLJPot(rij_min, utmp, frtmp, 2*_polyrad);
             _polySpheres[i].f_mob += - frtmp * vec_rij_min;
             _polySpheres[j].f_mob += frtmp * vec_rij_min;
         }
