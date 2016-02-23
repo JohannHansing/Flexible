@@ -57,7 +57,7 @@ void CConfiguration::calcMobilityForces(){
     _ubend=0;
     _uspring=0;
     // Calculate two-particle interactions between tracer and edgeparticles
-    int rtracerpoly = (_pradius+_polyrad)/2.;
+    double rtracerpoly = (_pradius+_polyrad)/2.;
     
     // LENNARD JONES INTERACTION TRACER
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
