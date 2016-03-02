@@ -105,7 +105,7 @@ public:
     void saveXYZTraj(string name, const int& move, string flag);
     void saveGRO(string foldername, const int& move);
     void saveCoordinates(std::ostream& trajectoryfile, unsigned int stepcount);
-    Eigen::Vector3d minImage(Eigen::Vector3d rij, double bhalf);
+    Eigen::Vector3d minImage(Eigen::Vector3d rij);
 	std::vector<double> getppos();
     double getUpot(){ return _upot; }
     string getTestCue(){ return _testcue; };
@@ -184,7 +184,7 @@ private:
     }
     
     //POTENTIALS
-    void addLJPot(const double& r, double& U, double& Fr){
+    void addLJPot(const double& r, double& U, double& Fr, const double& d_steric){
         //Function to calculate the Lennard-Jones Potential
         double  por6 = pow((d_steric / r ), 6);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
         U += 4 * _epsilonLJ * ( por6*por6 - por6 + 0.25 );
@@ -302,8 +302,6 @@ private:
                                 //cout << "35" << endl;
                                 pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
                                 _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
-                                //TODO
-                                "CHECK IF THIS IS CORRECT BEFORE DOING ANYTHING ELSE!"
                                 if (t==0){
                                     _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny-1,nz));
                                     _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny,nz-1));
