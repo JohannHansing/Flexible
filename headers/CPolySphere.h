@@ -32,6 +32,7 @@ public:
     int n_rn; // number of right neigbors for spring interaction. Initialized to zero and incremented by 1 for each rightneigbor added.
     bool image[3];
     int i_rn[3]; // indexes of right neighbors are stored here. 
+    std::vector<int> i_LJ; // indexes of extra LJ neigbors are stored here.
     
     
     void addRightNeighbor(int rightneighborIndex, int myindex, Eigen::Vector3d pbc_shift = Eigen::Vector3d::Zero()){
@@ -44,6 +45,10 @@ public:
         
         i_rn[n_rn] = rightneighborIndex;
         n_rn++;
+    }
+    
+    void addextraLJneighbor(int LJneighbor){
+        i_LJ.push_back(LJneighbor);
     }
 
 };

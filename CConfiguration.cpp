@@ -51,65 +51,131 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
 
 void CConfiguration::calcMobilityForces(){
     Vector3d vec_rij, vec_rij_min;
-    double rij = 0, rij_min=0, bhalf = _boxsize/2.0;
+    double rij = 0, rij_min=0;
     double utmp = 0, frtmp = 0;
+    double faddtmp;
     _f_mob = Vector3d::Zero();
     _ubend=0;
     _uspring=0;
     // Calculate two-particle interactions between tracer and edgeparticles
     // LENNARD JONES INTERACTION TRACER
+    double tmprad = 1.122462 * _pradius+_polyrad;
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
         _polySpheres[i].f_mob  = Vector3d::Zero();
         frtmp = 0;
-        vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos, bhalf);
+        vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos);
         rij = vec_rij.norm();
         
-        addLJPot(rij, _uLJ, frtmp, _pradius+_polyrad);
-        
-        // add total directional forces
-        _f_mob += - frtmp * vec_rij;
-        _polySpheres[i].f_mob += frtmp * vec_rij;
+        if ( rij <  tmprad ){ // steric parameter d_steric is the added radii of both Lennard-Jones particles
+            addLJPot(rij, _uLJ, frtmp);
+                
+            // add total directional forces
+            faddtmp = frtmp * vec_rij;
+            _f_mob -= faddtmp;
+            _polySpheres[i].f_mob += faddtmp;
+        }
     }
     utmp = _uLJ; // store total LJ potential of tracer
     
-    // LENNARD JONES INTERACTION POLYSPHERES
+    // INTERACTION POLYSPHERES
+    int rn;
+    tmprad = 1.122462 * 2*_polyrad;
+    if (_kappaBend == 0){
+        for (unsigned int i = 0; i < _N_polySpheres ; i++) {
+            // SPRING INTERACTION AND LENNARD JONES ONLY FOR CLOSE PARTICLES
+            //TODO is LJ really included?
+            //TODO is spring really included?
+            for (int k=0; k<_polySpheres[i].n_rn; k++){
+                frtmp = 0;
+                rn = _polySpheres[i].i_rn[k]; // index of right neighbor
+                vec_rij = _polySpheres[rn].pos_abs - _polySpheres[i].pos_abs;
+                if (_polySpheres[i].image[k]) {
+                    vec_rij += _polySpheres[i].image_corr[k];  
+                }
+                rij = vec_rij.norm();
+                
+                // SPRING
+                addSpringPot(rij, _uspring, frtmp);
+                // LENNARD-JONES
+                if ( rij <  tmprad )  addLJPot(rij, utmp, frtmp);
+                //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
+                faddtmp = frtmp * vec_rij;
+                _polySpheres[i].f_mob -= faddtmp ;
+                _polySpheres[rn].f_mob += faddtmp;
+                if (_polySpheres[rn].n_rn == 3){
+                    //TODO 
+                    //LJ Interact with these three, too!
+                    for (int f=0;f<3;f++){
+                        j=_polySpheres[rn].i_rn[f]
+                        frtmp =0;
+                        vec_rij = minImage(_polySpheres[j].pos_abs - _polySpheres[i].pos_abs);
+                        rij = vec_rij.norm()
+                        if (rij < tmprad ){
+                            addLJPot(rij, utmp, frtmp);
+                            faddtmp = frtmp * vec_rij;
+                            _polySpheres[i].f_mob -= faddtmp;
+                            _polySpheres[j].f_mob += faddtmp;
+                        }
+                    }
+                    
+                    // BUT ALSO WITH THE OTHER NEIGHBORS OF THIS GUY!
+                    // Maybe I need to store leftneighbors too in the case of a sphere at a vertex.
+                    for (int f=0;f<_polySpheres[i].i_LJ.size();f++){
+                        j=_polySpheres[i].i_LJ[f]
+                        frtmp =0;
+                        vec_rij = minImage(_polySpheres[j].pos_abs - _polySpheres[i].pos_abs);
+                        rij = vec_rij.norm()
+                        if (rij < tmprad ){
+                            addLJPot(rij, utmp, frtmp);
+                            faddtmp = frtmp * vec_rij;
+                            _polySpheres[i].f_mob -= faddtmp;
+                            _polySpheres[j].f_mob += faddtmp;
+                        }
+                    }
+                }
+                
+            }
+        }
+    }
+    
+    
     for (unsigned int i = 0; i < _N_polySpheres ; i++) {
-        //nSpringPot=0;
+        // LENNARD JONES 
         for (unsigned int j = i+1; j < _N_polySpheres ; j++) {
             frtmp = 0;
             vec_rij = _polySpheres[j].pos_abs - _polySpheres[i].pos_abs;
             _Mrvec[j][i] = vec_rij; // stores vector going from _polySphere[i] to _polySphere[j]
             _Mrvec[i][j] = -vec_rij; 
             
-            vec_rij_min = minImage(vec_rij, bhalf);  // For LJ interaction minImage needs to be employed
+            vec_rij_min = minImage(vec_rij);  // For LJ interaction minImage needs to be employed
             rij_min = vec_rij_min.norm();
-            addLJPot(rij_min, utmp, frtmp, 2*_polyrad);
-            _polySpheres[i].f_mob += - frtmp * vec_rij_min;
-            _polySpheres[j].f_mob += frtmp * vec_rij_min;
+            if ( rij_min <  tmprad ){ // steric parameter d_steric is the added radii of both Lennard-Jones particles
+                addLJPot(rij_min, utmp, frtmp);
+                
+                faddtmp = frtmp * vec_rij_min;
+                _polySpheres[i].f_mob -= faddtmp;
+                _polySpheres[j].f_mob += faddtmp;
+            }
         }
-    }
-    
-
-    // SPRING INTERACTION
-    for (unsigned int i = 0; i < _N_polySpheres ; i++) {
+        // SPRING INTERACTION
         for (int k=0; k<_polySpheres[i].n_rn; k++){
             frtmp = 0;
-            int j = _polySpheres[i].i_rn[k]; // index of right neighbor
+            rn = _polySpheres[i].i_rn[k]; // index of right neighbor
             if (_polySpheres[i].image[k]) {
-                //cout << " **********\n" << _Mrvec[j][i].norm() << endl;
-                _Mrvec[j][i] += _polySpheres[i].image_corr[k];  
-                _Mrvec[i][j] = -_Mrvec[j][i];
-                //cout << "\n--\n" << _Mrvec[j][i].norm() << endl;
+                //cout << " **********\n" << _Mrvec[rn][i].norm() << endl;
+                _Mrvec[rn][i] += _polySpheres[i].image_corr[k];  
+                _Mrvec[i][rn] = -_Mrvec[rn][i];
+                //cout << "\n--\n" << _Mrvec[rn][i].norm() << endl;
             }
-            rij = _Mrvec[j][i].norm();
-            _Mrabs[j][i] = rij; 
-            _Mrabs[i][j] = rij;
+            rij = _Mrvec[rn][i].norm();
+            _Mrabs[rn][i] = rij; 
+            _Mrabs[i][rn] = rij;
             
             addSpringPot(rij, _uspring, frtmp);
-            //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << j << endl;
-            _polySpheres[i].f_mob += - frtmp * _Mrvec[j][i];
-            _polySpheres[j].f_mob += frtmp * _Mrvec[j][i];
-            //if (rij>bhalf) {cout << "i=" << i << " -- j=" << j << " -- r=" << rij << endl;}
+            //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
+            faddtmp = frtmp * _Mrvec[rn][i];
+            _polySpheres[i].f_mob -= faddtmp ;
+            _polySpheres[rn].f_mob += faddtmp;
         }
     }
 
@@ -140,7 +206,7 @@ void CConfiguration::calcMobilityForces(){
 }
 
 
-Vector3d CConfiguration::minImage(Vector3d rij, double bhalf){
+Vector3d CConfiguration::minImage(Vector3d rij){
     // returns disctance vector with minimal image convention.
     // For info - Check wikipedia
     Vector3d rij_rem;

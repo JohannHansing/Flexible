@@ -184,13 +184,11 @@ private:
     }
     
     //POTENTIALS
-    void addLJPot(const double r, double& U, double& Fr, const double r_steric){
+    void addLJPot(const double& r, double& U, double& Fr){
         //Function to calculate the Lennard-Jones Potential
-        if ( r < 1.122462 * r_steric ){ // steric parameter r_steric is the added radii of both Lennard-Jones particles
-            double  por6 = pow((r_steric / r ), 6);      //por6 stands for "p over r to the power of 6" . r_steric is the total steric parameter
-            U += 4 * _epsilonLJ * ( por6*por6 - por6 + 0.25 );
-            Fr +=  24  * _epsilonLJ / ( r * r ) * ( 2 * por6*por6 - por6 );
-        }
+        double  por6 = pow((d_steric / r ), 6);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
+        U += 4 * _epsilonLJ * ( por6*por6 - por6 + 0.25 );
+        Fr +=  24  * _epsilonLJ / ( r * r ) * ( 2 * por6*por6 - por6 );
     }
     
     void addSpringPot(const double& r, double &U, double &Fr) { 
@@ -201,7 +199,7 @@ private:
     }
     
     
-    void calcBendPot(Eigen::Vector3d vec_r12, Eigen::Vector3d vec_r32, double r12, double r32, double& U, Eigen::Vector3d& fvec1, Eigen::Vector3d& fvec3){
+    void calcBendPot(Eigen::Vector3d& vec_r12, Eigen::Vector3d& vec_r32, double& r12, double& r32, double& U, Eigen::Vector3d& fvec1, Eigen::Vector3d& fvec3){
         // Function that returns the bending potential between three particles, where partice 2 is in the middle 
         Eigen::Vector3d vec_n = vec_r12.cross(vec_r32);
         double r12r32 = r12*r32;
@@ -304,6 +302,15 @@ private:
                                 //cout << "35" << endl;
                                 pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
                                 _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
+                                //TODO
+                                "CHECK IF THIS IS CORRECT BEFORE DOING ANYTHING ELSE!"
+                                if (t==0){
+                                    _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny-1,nz));
+                                    _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny,nz-1));
+                                }
+                                if (t==1){
+                                    _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx,ny+1,nz-1));
+                                }                                    
                                 //cout << "36" << endl;
                                 counter++;
                             }
@@ -351,6 +358,14 @@ private:
                             _MbendTupel[counter][2] = _MspringTupel[counter][1];
                             pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
                             _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
+                            //TODO
+                            if (i == ne){
+                                _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny-1,nz));
+                                _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny,nz-1));
+                            }
+                            if (i == 2*ne){
+                                _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx,ny+1,nz-1));
+                            }
                             counter++;
                         }
                         else if (i % ne == 0){ // if i = ne, 2ne or 3ne
@@ -371,6 +386,14 @@ private:
                             _MbendTupel[counter][2] = _MspringTupel[counter][1];
                             pbc_shift << a, b, c; // Shift of rightneighbor position due to per.bound.cond. if rightneighbor is in adjacent box.
                             _polySpheres[currentIndex].addRightNeighbor(rightneighbor, currentIndex, pbc_shift*_boxsize);
+                            //TODO
+                            if (i == ne){
+                                _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny-1,nz));
+                                _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx+1,ny,nz-1));
+                            }
+                            if (i == 2*ne){
+                                _polySpheres[currentIndex].addextraLJneighbor(makeIndex(0,nx,ny+1,nz-1));
+                            }
                             counter++;
                         }
                         else  {
