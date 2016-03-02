@@ -184,25 +184,28 @@ private:
     }
     
     //POTENTIALS
-    void addLJPot(const double& r, double& U, double& Fr, const double& d_steric){
+    void addLJPot(const double& r, const double& rsq, double& U, double& Fr, const double& d_stericSq){
         //Function to calculate the Lennard-Jones Potential
-        double  por6 = pow((d_steric / r ), 6);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
-        U += 4 * _epsilonLJ * ( por6*por6 - por6 + 0.25 );
-        Fr +=  24  * _epsilonLJ / ( r * r ) * ( 2 * por6*por6 - por6 );
+        const double por6 = pow((d_stericSq / rsq ), 3);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
+        const double c1 = 4. * por6 * _epsilonLJ;
+        U += c1 * ( por6 - 1. ) + _epsilonLJ;
+        //U += 4. * _epsilonLJ * ( por6*por6 - por6 + 0.25 );
+        Fr +=  12. * c1 / ( rsq ) * ( por6 - 0.5 );
+        //Fr +=  24.  * _epsilonLJ / ( rsq ) * ( 2. * por6*por6 - por6 );
     }
     
     void addSpringPot(const double& r, double &U, double &Fr) { 
         //double u = _kappaSP * pow(r - _r0SP, 2);
         //if (u > 10000) cout << "U = " << u << "r = " <<  r << endl;
         U += (_kappaSP * pow(r - _r0SP, 2));
-        Fr += (_kappaSP * 2 * (_r0SP/r - 1));
+        Fr += (_kappaSP * 2. * (_r0SP/r - 1.));
     }
     
     
     void calcBendPot(Eigen::Vector3d& vec_r12, Eigen::Vector3d& vec_r32, double& r12, double& r32, double& U, Eigen::Vector3d& fvec1, Eigen::Vector3d& fvec3){
         // Function that returns the bending potential between three particles, where partice 2 is in the middle 
         Eigen::Vector3d vec_n = vec_r12.cross(vec_r32);
-        double r12r32 = r12*r32;
+        const double r12r32 = r12*r32;
        // cout << "theta = " << 180 / 3.14 * acos(vec_r12.dot(vec_r32)/r12r32) << endl;
         fvec1 =  _kappaBend *  vec_r12.cross(vec_n) / (r12*r12*r12r32);
         fvec3 =  _kappaBend *  vec_n.cross(vec_r32) / (r32*r32*r12r32);
