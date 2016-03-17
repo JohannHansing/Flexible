@@ -245,11 +245,20 @@ void CConfiguration::calcMobilityForces(){
 Vector3d CConfiguration::minImage(Vector3d rij){
     // returns disctance vector with minimal image convention.
     // For info - Check wikipedia
-    Vector3d rij_rem;
-    rij_rem(0) = remainder(rij(0),_boxsize);
-    rij_rem(1) = remainder(rij(1),_boxsize);
-    rij_rem(2) = remainder(rij(2),_boxsize);
-    return rij_rem;
+    int abc[3];
+    Vector3d minvec = rij;
+        for (int p=0;p<3;p++){
+            abc[p]= minvec(p)*(_binv);
+            minvec(p) -= abc[p] * _boxsize;
+            abc[p]= minvec(p)*(_binv);
+            minvec(p) -= abc[p] * _boxsize;
+        }
+    // Vector3d rij_rem;
+//     rij_rem(0) = remainder(rij(0),_boxsize);
+//     rij_rem(1) = remainder(rij(1),_boxsize);
+//     rij_rem(2) = remainder(rij(2),_boxsize);
+//     if (rij_rem - minvec != Vector3d::Zero()) cout << "===============\n" << rij_rem- minvec << "\nrij_rem:\n" << rij_rem <<  "\nminvec:\n" << minvec << endl;
+        return minvec;
     // This was used to check, if rij_rem minimage verison produces the correct result.
     //if (  rij_rem - rij != Vector3d::Zero() )cout << "=========\n" << rij_rem << "\n--\n" << rij << "\n****\n" << endl;
 }
