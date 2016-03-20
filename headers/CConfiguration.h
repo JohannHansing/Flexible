@@ -86,6 +86,7 @@ private:
     //SemiFlexiblePolymer
     std::vector<std::array<int, 2> > _MspringTupel;
     std::vector<std::array<int, 3> > _MbendTupel;
+    double _binv;
 
     //MISC
     boost::mt19937 *m_igen;                      //generate instance of random number generator "twister".
@@ -164,6 +165,7 @@ private:
         _epsilonLJ = 1;  // in kT 
         _upot = 0;
         _r0SP = _boxsize/_n_cellsAlongb/_edgeParticles; //equilibrium distance for spring potential
+        _binv = 2./_boxsize;
         cout << "TODO: Adjust bending and spring parameters! Consider Schlagberger2006 and Metzler paper." << endl;
         cout << "initConstants [OK]" << endl;
     }
