@@ -87,6 +87,12 @@ private:
     std::vector<std::array<int, 2> > _MspringTupel;
     std::vector<std::array<int, 3> > _MbendTupel;
     double _binv;
+    
+    //LJlist
+    std::vector<int> _LJlist;
+    double _cutoffAddToLJlistSq;
+    double _cutoffUpdateLJlistSq;
+    double _lastcheck[3]={0,0,0};
 
     //MISC
     boost::mt19937 *m_igen;                      //generate instance of random number generator "twister".
@@ -111,6 +117,8 @@ public:
     double getUpot(){ return _upot; }
     string getTestCue(){ return _testcue; };
     void save_traj_step(XDRFILE *xd, const int stepcount);
+    void updateLJlist();
+    void checkDisplacementforLJlist();
     bool printGroFile(string folder){
         /* http://manual.gromacs.org/current/online/gro.html
         residue number (5 positions, integer)
@@ -166,6 +174,9 @@ private:
         _upot = 0;
         _r0SP = _boxsize/_n_cellsAlongb/_edgeParticles; //equilibrium distance for spring potential
         _binv = 2./_boxsize;
+        //TODO LJlist
+        _cutoffAddToLJlistSq = pow(2*_boxsize/_n_cellsAlongb,2);
+        _cutoffUpdateLJlistSq = pow(0.3,2)*_cutoffAddToLJlistSq;
         cout << "TODO: Adjust bending and spring parameters! Consider Schlagberger2006 and Metzler paper." << endl;
         cout << "initConstants [OK]" << endl;
     }
@@ -186,7 +197,7 @@ private:
     }
     
     //POTENTIALS
-    void addLJPot(const double& r, const double& rsq, double& U, double& Fr, const double& d_stericSq){
+    void addLJPot(const double& rsq, double& U, double& Fr, const double& d_stericSq){
         //Function to calculate the Lennard-Jones Potential
         const double por6 = pow((d_stericSq / rsq ), 3);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
         const double c1 = 4. * por6 * _epsilonLJ;
@@ -213,7 +224,6 @@ private:
         fvec3 =  _kappaBend *  vec_n.cross(vec_r32) / (r32*r32*r12r32);
         U     =  _kappaBend *  ( 1 + vec_r12.dot(vec_r32)/r12r32 );
     }
-    
     
     
     

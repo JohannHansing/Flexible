@@ -105,6 +105,7 @@ int main(int argc, const char* argv[]){
 // -------------- iteration step-loop ------------
         for (int i = 0; i < _simpar.steps; i++){
 
+            conf.checkDisplacementforLJlist();
             conf.calcStochasticForces();
             conf.calcMobilityForces();
 
