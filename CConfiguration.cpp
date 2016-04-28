@@ -21,22 +21,22 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
     _polyrad = modelpar.polymersize / 2;   //This is needed for testOverlap for steric and HI stuff !!
 	_boxsize = modelpar.boxsize;
     _n_cellsAlongb = modelpar.n_cells;
-    _kappaSP = modelpar.kspring; // in kT/a^2
+    _kappaSP = modelpar.kspring; // in kT/a^2 NO! I this would only be true, if all lengths were rescaled by the particle size. I, in contrast, rescale with 0.1b!
     _kappaBend = modelpar.kbend; // in kT
     _timestep = timestep;
-    
+
     for (int i = 0; i < 3; i++){
         _ppos(i) = _boxsize/_n_cellsAlongb/2.0;
         _boxnumberXYZ[i] = 0;
         _startpos(i) = _ppos(i);
     }
     cout << "TODO IMPLEMENT OVERLAP TEST FUNCTION BETWEEN PARTICLE AND POLYMER LATTICE AT START OF SIMULATION!!!" << endl;
-    
+
     initConstants(modelpar);
-    
+
     // init random number generator
     setRanNumberGen(0);
-    //initPolyspheres(); 
+    //initPolyspheres();
     //initInteractionMatrix(); // This comes only AFTER initPolyspheres
     initSemiFlexibleLattice();
     updateLJlist();
@@ -89,10 +89,10 @@ void CConfiguration::calcMobilityForces(){
         frtmp = 0;
         vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos);
         rijSq = vec_rij.squaredNorm();
-        
+
         if ( rijSq <  tracerLJSq ){ // steric parameter d_steric is the added radii of both Lennard-Jones particles
             addLJPot(rijSq, _uLJ, frtmp,tracerLJSq);
-                
+
             // add total directional forces
             faddtmp = frtmp * vec_rij;
             _f_mob += - faddtmp;
@@ -100,7 +100,7 @@ void CConfiguration::calcMobilityForces(){
         }
     }
     utmp = _uLJ; // store total LJ potential of tracer
-    
+
     //INTERACTION POLYSPHERES
     int rn;
     const double polysLJSq = pow(2.244924 *_polyrad, 2);
@@ -180,7 +180,7 @@ void CConfiguration::calcMobilityForces(){
 //                 rij = sqrt(rijSq);
 //                 _Mrabs[rn][i] = rij;
 //                 _Mrabs[i][rn] = rij;
-// 
+//
 //                 addSpringPot(rij, _uspring, frtmp);
 //                 //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
 //                 if (rijSq < polysLJSq ){
@@ -191,7 +191,7 @@ void CConfiguration::calcMobilityForces(){
 //                 _polySpheres[rn].f_mob += faddtmp;
 //             }
 //         }
-        
+
 
         // ++++++++++++++++++++++++++++++ FULL CALCULATION (slow) NEED TO USE THIS FOR _kappaSP = 0 ++++++++++++++++
         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
@@ -242,7 +242,7 @@ void CConfiguration::calcMobilityForces(){
         Vector3d fvec1, fvec3;
         double utmp3p=0;
         int i1, i2, i3;
-    
+
         for (int i=0; i<_N_springInteractions; i++){
             i1 = _MbendTupel[i][0];
             i2 = _MbendTupel[i][1];
@@ -297,7 +297,7 @@ void CConfiguration::makeStep(){
     Vector3d dr;
     _prevpos = _ppos;
     _ppos += _f_mob * _timestep + _f_sto * _mu_sto;
-    
+
     // move polymerSperes
     if (_kappaSP != 0.0){
         double mu_correction = _pradius/_polyrad;
@@ -309,13 +309,13 @@ void CConfiguration::makeStep(){
         }
     }
     if ((_prevpos-_ppos).squaredNorm() > 1 ){
-        cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos 
+        cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos
             << "\nppos:\n" << _ppos
                 << "\n_upot = " << _upot
                     << "\nubend = " << _ubend << " -- uspring = " << _uspring << " -- uLJ = " << _uLJ <<  endl;
         throw 2;
     }
-    // Check if particle has crossed the confinenment of the box 
+    // Check if particle has crossed the confinenment of the box
     checkBoxCrossing();
 }
 
@@ -348,13 +348,13 @@ void CConfiguration::calcStochasticForces(){
     // samples from normal distribution with variance 1 (later sqrt(2) is multiplied)
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<double> > ran_gen(
             *m_igen, boost::normal_distribution<double>(0, 1));
-	
-	
+
+
     _f_sto(0) = ran_gen();
 	_f_sto(1) = ran_gen();
 	_f_sto(2) = ran_gen();
 
-    
+
     for (unsigned int i = 0; i < _polySpheres.size() ; i++) {
         _polySpheres[i].f_sto(0) = ran_gen();
         _polySpheres[i].f_sto(1) = ran_gen();
@@ -455,8 +455,8 @@ void CConfiguration::save_traj_step(XDRFILE *xd, const int stepcount) {
 
 void CConfiguration::saveCoordinates(ostream& trajectoryfile, unsigned int stepcount) {
     // So far this only writes the tracer particle position
-	trajectoryfile << fixed << stepcount * _timestep << "\t" 
-        << _ppos(0)+ _boxsize *_boxnumberXYZ[0] << " " << _ppos(1) +_boxsize*_boxnumberXYZ[1] 
+	trajectoryfile << fixed << stepcount * _timestep << "\t"
+        << _ppos(0)+ _boxsize *_boxnumberXYZ[0] << " " << _ppos(1) +_boxsize*_boxnumberXYZ[1]
             << " " << _ppos(2) +_boxsize*_boxnumberXYZ[2] << endl;
 
 	// for (unsigned int i = 0; i < m_NumberParticles; i++) {
