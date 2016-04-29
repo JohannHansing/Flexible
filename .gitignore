@@ -1,3 +1,7 @@
+relwithdebinfo/
+before
+after
+perf*
 .DS_Store
 CMakeLists.txt
 Debug/
