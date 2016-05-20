@@ -90,7 +90,6 @@ void CConfiguration::calcMobilityForces(){
         vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos);
         rijSq = vec_rij.squaredNorm();
         if ( rijSq <  1.25992 * tracerLJSq ){ // steric parameter d_steric is the added radii of both Lennard-Jones particles
-            rij = sqrt(rijSq);
             addLJPot(rijSq, _uLJ, frtmp,tracerLJSq);
 
             // add total directional forces
@@ -102,9 +101,10 @@ void CConfiguration::calcMobilityForces(){
     utmp = _uLJ; // store total LJ potential of tracer
 
     //INTERACTION POLYSPHERES
+    // here; we calculate the spring and LJ interaction between the polyspheres, if the network consists of connected springs with _edgeParticles>1
     int rn;
     const double polysLJSq = pow(2.*_polyrad, 2);
-    if (_edgeParticles != 1 && _kappaSP != 0){
+    if (_edgeParticles != 1 && _kappaSP > 0){// _kappaSP > 0 since -1 means fixed spheres (no interaction) and 0 is taken care of in the else if statement below.
         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
             // SPRING INTERACTION AND LENNARD JONES ONLY FOR CLOSE PARTICLES
             //TODO is LJ really included?
@@ -116,13 +116,11 @@ void CConfiguration::calcMobilityForces(){
                 if (_polySpheres[i].image[k]) {
                     vec_rij += _polySpheres[i].image_corr[k];
                 }
-                rijSq = vec_rij.squaredNorm();
+                rijSq = vec_rij.squaredNorm();  
 
                 // SPRING
-                if (_kappaSP > 0){//if larger zero, since -1 means fixed spheres
-                    rij = sqrt(rijSq);
-                    addSpringPot(rij, _uspring, frtmp);
-                }
+                rij = sqrt(rijSq);
+                addSpringPot(rij, _uspring, frtmp);
                 // LENNARD-JONES
                 if ( rijSq <  1.25992 * polysLJSq )  addLJPot(rijSq, utmp, frtmp,polysLJSq);
                 //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
@@ -131,7 +129,6 @@ void CConfiguration::calcMobilityForces(){
                 _polySpheres[rn].f_mob += faddtmp;
                 if (_polySpheres[rn].n_rn == 3){
                     int j = 0;
-                    //TODO
                     //LJ Interact with these three, too!
                     for (int f=0;f<3;f++){
                         j=_polySpheres[rn].i_rn[f];
@@ -139,7 +136,6 @@ void CConfiguration::calcMobilityForces(){
                         vec_rij = minImage(_polySpheres[j].pos_abs - _polySpheres[i].pos_abs);
                         rijSq = vec_rij.squaredNorm();
                         if (rijSq < 1.25992 * polysLJSq ){
-                            rij = sqrt(rijSq);
                             addLJPot(rijSq, utmp, frtmp, polysLJSq);
 
                             faddtmp = frtmp * vec_rij;
@@ -156,7 +152,6 @@ void CConfiguration::calcMobilityForces(){
                         vec_rij = minImage(_polySpheres[j].pos_abs - _polySpheres[i].pos_abs);
                         rijSq = vec_rij.squaredNorm();
                         if (rijSq < 1.25992 * polysLJSq ){
-                            rij = sqrt(rijSq);
                             addLJPot(rijSq, utmp, frtmp, polysLJSq);
 
                             faddtmp = frtmp * vec_rij;
@@ -169,10 +164,10 @@ void CConfiguration::calcMobilityForces(){
             }
         }
     }
-    else{
+    else if(_kappaSP != -1) {//If the spheres are fixed, no interaction needs to be calculated
         // ++++++++++++++++++++++++++++++ FULL CALCULATION (slow) NEED TO USE THIS FOR _kappaSP = 0 ++++++++++++++++
         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
-            // LENNARD JONES
+            // LENNARD JONES -- TODO this is inefficient for edgeparticles==1
             for (unsigned int j = i+1; j < _N_polySpheres ; j++) {
                 frtmp = 0;
                 if (_kappaSP != 0.) vec_rij = _polySpheres[j].pos_abs - _polySpheres[i].pos_abs;
@@ -183,7 +178,6 @@ void CConfiguration::calcMobilityForces(){
                 vec_rij_min = minImage(vec_rij);  // For LJ interaction minImage needs to be employed
                 rijSq = vec_rij_min.squaredNorm();
                 if (rijSq < 1.25992 * polysLJSq ){
-                    rij = sqrt(rijSq);
                     addLJPot(rijSq, utmp, frtmp, polysLJSq);
 
                     faddtmp = frtmp * vec_rij_min;
