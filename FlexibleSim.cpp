@@ -105,7 +105,6 @@ int main(int argc, const char* argv[]){
 // -------------- iteration step-loop ------------
         for (int i = 0; i < _simpar.steps; i++){
 
-            conf.checkDisplacementforLJlist();
             conf.calcStochasticForces();
             conf.calcMobilityForces();
 
@@ -124,6 +123,9 @@ int main(int argc, const char* argv[]){
 //                 conf.calcStochasticForces();
 //                 conf.makeStep();
 //             }
+ 
+            // Check if particle has crossed the confinenment of the box 
+            conf.checkBoxCrossing();
 
 
             // Write trajectory to trajectoryfile
@@ -131,6 +133,7 @@ int main(int argc, const char* argv[]){
                 conf.saveCoordinates(trajectoryfile, stepcount);
                 //conf.save_traj_step(_files.xd,i);  //TODO xtc
             }
+            
             if (((i+1)%100 == 0) && (l == 0)){       //Save the first trajectory to file
                 conf.saveXYZTraj(traj_file, i, "a");                    // TODO change back ((i+1)%XXX == 0) to 100
             }

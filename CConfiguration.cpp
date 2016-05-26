@@ -39,7 +39,7 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
     //initPolyspheres(); 
     //initInteractionMatrix(); // This comes only AFTER initPolyspheres
     initSemiFlexibleLattice();
-    updateLJlist();
+    //updateLJlist();
     cout << "NOTE: Implement periodic boundary conditions for the polySpheres. I.e. checkBoxCrossing function! " << endl;
     // TEST CUE to modify the directory the output data is written to!!
     _testcue = "";
@@ -320,8 +320,6 @@ void CConfiguration::makeStep(){
                     << "\nubend = " << _ubend << " -- uspring = " << _uspring << " -- uLJ = " << _uLJ <<  endl;
         throw 2;
     }
-    // Check if particle has crossed the confinenment of the box 
-    checkBoxCrossing();
 }
 
 
@@ -345,6 +343,8 @@ void CConfiguration::checkBoxCrossing(){
             }
         }
     }
+    //enable this for use of LJlist (no real speedup actually
+    //checkDisplacementforLJlist();
 }
 
 
