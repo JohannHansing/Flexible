@@ -21,22 +21,22 @@ CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_t
     _polyrad = modelpar.polymersize / 2;   //This is needed for testOverlap for steric and HI stuff !!
 	_boxsize = modelpar.boxsize;
     _n_cellsAlongb = modelpar.n_cells;
-    _kappaSP = modelpar.kspring; // in kT/a^2
+    _kappaSP = modelpar.kspring; // in kT/a^2 NO! I this would only be true, if all lengths were rescaled by the particle size. I, in contrast, rescale with 0.1b!
     _kappaBend = modelpar.kbend; // in kT
     _timestep = timestep;
-    
+
     for (int i = 0; i < 3; i++){
         _ppos(i) = _boxsize/_n_cellsAlongb/2.0;
         _boxnumberXYZ[i] = 0;
         _startpos(i) = _ppos(i);
     }
     cout << "TODO IMPLEMENT OVERLAP TEST FUNCTION BETWEEN PARTICLE AND POLYMER LATTICE AT START OF SIMULATION!!!" << endl;
-    
+
     initConstants(modelpar);
-    
+
     // init random number generator
     setRanNumberGen(0);
-    //initPolyspheres(); 
+    //initPolyspheres();
     //initInteractionMatrix(); // This comes only AFTER initPolyspheres
     initSemiFlexibleLattice();
     //updateLJlist();
@@ -90,9 +90,8 @@ void CConfiguration::calcMobilityForces(){
         vec_rij = minImage(_polySpheres[i].pos_pbc - _ppos);
         rijSq = vec_rij.squaredNorm();
         if ( rijSq <  1.25992 * tracerLJSq ){ // steric parameter d_steric is the added radii of both Lennard-Jones particles
-            rij = sqrt(rijSq);
             addLJPot(rijSq, _uLJ, frtmp,tracerLJSq);
-                
+
             // add total directional forces
             faddtmp = frtmp * vec_rij;
             _f_mob += - faddtmp;
@@ -100,11 +99,12 @@ void CConfiguration::calcMobilityForces(){
         }
     }
     utmp = _uLJ; // store total LJ potential of tracer
-    
+
     //INTERACTION POLYSPHERES
+    // here; we calculate the spring and LJ interaction between the polyspheres, if the network consists of connected springs with _edgeParticles>1
     int rn;
-    const double polysLJSq = pow(_polyrad, 2);
-    if (_edgeParticles != 1){
+    const double polysLJSq = pow(2.*_polyrad, 2);
+    if (_edgeParticles != 1 && _kappaSP > 0){// _kappaSP > 0 since -1 means fixed spheres (no interaction) and 0 is taken care of in the else if statement below.
         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
             // SPRING INTERACTION AND LENNARD JONES ONLY FOR CLOSE PARTICLES
             //TODO is LJ really included?
@@ -116,30 +116,28 @@ void CConfiguration::calcMobilityForces(){
                 if (_polySpheres[i].image[k]) {
                     vec_rij += _polySpheres[i].image_corr[k];
                 }
-                rijSq = vec_rij.squaredNorm();
-                rij = sqrt(rijSq);
+                rijSq = vec_rij.squaredNorm();  
 
                 // SPRING
+                rij = sqrt(rijSq);
                 addSpringPot(rij, _uspring, frtmp);
                 // LENNARD-JONES
-                if ( rijSq <  5.03968 * polysLJSq )  addLJPot(rijSq, utmp, frtmp,polysLJSq);
+                if ( rijSq <  1.25992 * polysLJSq )  addLJPot(rijSq, utmp, frtmp,polysLJSq);
                 //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
                 faddtmp = frtmp * vec_rij;
                 _polySpheres[i].f_mob += - faddtmp ;
                 _polySpheres[rn].f_mob += faddtmp;
                 if (_polySpheres[rn].n_rn == 3){
                     int j = 0;
-                    //TODO
                     //LJ Interact with these three, too!
                     for (int f=0;f<3;f++){
                         j=_polySpheres[rn].i_rn[f];
                         frtmp =0;
                         vec_rij = minImage(_polySpheres[j].pos_abs - _polySpheres[i].pos_abs);
                         rijSq = vec_rij.squaredNorm();
-                        if (rijSq < 5.03968 * polysLJSq ){
-                            rij = sqrt(rijSq);
+                        if (rijSq < 1.25992 * polysLJSq ){
                             addLJPot(rijSq, utmp, frtmp, polysLJSq);
-                            
+
                             faddtmp = frtmp * vec_rij;
                             _polySpheres[i].f_mob += - faddtmp;
                             _polySpheres[j].f_mob += faddtmp;
@@ -153,10 +151,9 @@ void CConfiguration::calcMobilityForces(){
                         frtmp =0;
                         vec_rij = minImage(_polySpheres[j].pos_abs - _polySpheres[i].pos_abs);
                         rijSq = vec_rij.squaredNorm();
-                        if (rijSq < 5.03968 * polysLJSq ){
-                            rij = sqrt(rijSq);
+                        if (rijSq < 1.25992 * polysLJSq ){
                             addLJPot(rijSq, utmp, frtmp, polysLJSq);
-                            
+
                             faddtmp = frtmp * vec_rij;
                             _polySpheres[i].f_mob += - faddtmp;
                             _polySpheres[j].f_mob += faddtmp;
@@ -167,75 +164,48 @@ void CConfiguration::calcMobilityForces(){
             }
         }
     }
-    else{ //ONE SPHERE PER CELL _edgeParticles = 1 NO REAL SPEEDUP
-//         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
-//             // SPRING AND LENNARD JONES
-//             for (int k=0; k<_polySpheres[i].n_rn; k++){
-//                 frtmp = 0;
-//                 rn = _polySpheres[i].i_rn[k]; // index of right neighbor
-//                 vec_rij = _polySpheres[rn].pos_abs - _polySpheres[i].pos_abs;
-//                 if (_polySpheres[i].image[k]) {
-//                     //cout << " **********\n" << _Mrvec[rn][i].norm() << endl;
-//                     _Mrvec[rn][i] = vec_rij + _polySpheres[i].image_corr[k];
-//                     _Mrvec[i][rn] = -_Mrvec[rn][i];
-//                     //cout << "\n--\n" << _Mrvec[rn][i].norm() << endl;
-//                 }
-//                 rijSq = _Mrvec[rn][i].squaredNorm();
-//                 rij = sqrt(rijSq);
-//                 _Mrabs[rn][i] = rij;
-//                 _Mrabs[i][rn] = rij;
-// 
-//                 addSpringPot(rij, _uspring, frtmp);
-//                 //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
-//                 if (rijSq < 5.03968 * polysLJSq ){
-//                     addLJPot(rijSq, utmp, frtmp, polysLJSq);
-//                 }
-//                 faddtmp = frtmp * _Mrvec[rn][i];
-//                 _polySpheres[i].f_mob += - faddtmp ;
-//                 _polySpheres[rn].f_mob += faddtmp;
-//             }
-//         }
-        
-
+    else if(_kappaSP != -1) {//If the spheres are fixed, no interaction needs to be calculated
         // ++++++++++++++++++++++++++++++ FULL CALCULATION (slow) NEED TO USE THIS FOR _kappaSP = 0 ++++++++++++++++
         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
-            // LENNARD JONES
+            // LENNARD JONES -- TODO this is inefficient for edgeparticles==1
             for (unsigned int j = i+1; j < _N_polySpheres ; j++) {
                 frtmp = 0;
-                vec_rij = _polySpheres[j].pos_abs - _polySpheres[i].pos_abs;
+                if (_kappaSP != 0.) vec_rij = _polySpheres[j].pos_abs - _polySpheres[i].pos_abs;
+                else vec_rij = _polySpheres[j].pos_pbc - _polySpheres[i].pos_pbc;
                 _Mrvec[j][i] = vec_rij; // stores vector going from _polySphere[i] to _polySphere[j]
                 _Mrvec[i][j] = -vec_rij;
 
                 vec_rij_min = minImage(vec_rij);  // For LJ interaction minImage needs to be employed
                 rijSq = vec_rij_min.squaredNorm();
-                if (rijSq < 5.03968 * polysLJSq ){
-                    rij = sqrt(rijSq);
+                if (rijSq < 1.25992 * polysLJSq ){
                     addLJPot(rijSq, utmp, frtmp, polysLJSq);
-                    
+
                     faddtmp = frtmp * vec_rij_min;
                     _polySpheres[i].f_mob += - faddtmp;
                     _polySpheres[j].f_mob += faddtmp;
                 }
             }
-            // SPRING INTERACTION
-            for (int k=0; k<_polySpheres[i].n_rn; k++){
-                frtmp = 0;
-                rn = _polySpheres[i].i_rn[k]; // index of right neighbor
-                if (_polySpheres[i].image[k]) {
-                    //cout << " **********\n" << _Mrvec[rn][i].norm() << endl;
-                    _Mrvec[rn][i] += _polySpheres[i].image_corr[k];
-                    _Mrvec[i][rn] = -_Mrvec[rn][i];
-                    //cout << "\n--\n" << _Mrvec[rn][i].norm() << endl;
-                }
-                rij = _Mrvec[rn][i].norm();
-                _Mrabs[rn][i] = rij;
-                _Mrabs[i][rn] = rij;
+            if (_kappaSP > 0.){//only calc spring pot if spheres are not fixed (ks=-1) or unconnected (ks=0)
+                // SPRING INTERACTION
+                for (int k=0; k<_polySpheres[i].n_rn; k++){
+                    frtmp = 0;
+                    rn = _polySpheres[i].i_rn[k]; // index of right neighbor
+                    if (_polySpheres[i].image[k]) {
+                        //cout << " **********\n" << _Mrvec[rn][i].norm() << endl;
+                        _Mrvec[rn][i] += _polySpheres[i].image_corr[k];
+                        _Mrvec[i][rn] = -_Mrvec[rn][i];
+                        //cout << "\n--\n" << _Mrvec[rn][i].norm() << endl;
+                    }
+                    rij = _Mrvec[rn][i].norm();
+                    _Mrabs[rn][i] = rij;
+                    _Mrabs[i][rn] = rij;
 
-                addSpringPot(rij, _uspring, frtmp);
-                //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
-                faddtmp = frtmp * _Mrvec[rn][i];
-                _polySpheres[i].f_mob += - faddtmp ;
-                _polySpheres[rn].f_mob += faddtmp;
+                    addSpringPot(rij, _uspring, frtmp);
+                    //if (rij > 15) cout << "Sphere " << i << " ---- rightneighbor index = " << rn << endl;
+                    faddtmp = frtmp * _Mrvec[rn][i];
+                    _polySpheres[i].f_mob += - faddtmp;
+                    _polySpheres[rn].f_mob += faddtmp;
+                }
             }
         }
     }
@@ -247,7 +217,7 @@ void CConfiguration::calcMobilityForces(){
         Vector3d fvec1, fvec3;
         double utmp3p=0;
         int i1, i2, i3;
-    
+
         for (int i=0; i<_N_springInteractions; i++){
             i1 = _MbendTupel[i][0];
             i2 = _MbendTupel[i][1];
@@ -302,9 +272,9 @@ void CConfiguration::makeStep(){
     Vector3d dr;
     _prevpos = _ppos;
     _ppos += _f_mob * _timestep + _f_sto * _mu_sto;
-    
+
     // move polymerSperes
-    if (_kappaSP != 0.0){
+    if (_kappaSP != -1.){
         double mu_correction = _pradius/_polyrad;
         for (unsigned int i = 0; i < _N_polySpheres ; i++) {
             dr = _polySpheres[i].f_mob * _timestep * mu_correction + _polySpheres[i].f_sto * _mu_sto_poly;
@@ -314,7 +284,7 @@ void CConfiguration::makeStep(){
         }
     }
     if ((_prevpos-_ppos).squaredNorm() > 1 ){
-        cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos 
+        cout <<"\nCConfiguration.cpp ERROR: Way too big jump!!\nprevpos:\n" << _prevpos
             << "\nppos:\n" << _ppos
                 << "\n_upot = " << _upot
                     << "\nubend = " << _ubend << " -- uspring = " << _uspring << " -- uLJ = " << _uLJ <<  endl;
@@ -353,13 +323,13 @@ void CConfiguration::calcStochasticForces(){
     // samples from normal distribution with variance 1 (later sqrt(2) is multiplied)
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<double> > ran_gen(
             *m_igen, boost::normal_distribution<double>(0, 1));
-	
-	
+
+
     _f_sto(0) = ran_gen();
 	_f_sto(1) = ran_gen();
 	_f_sto(2) = ran_gen();
 
-    
+
     for (unsigned int i = 0; i < _polySpheres.size() ; i++) {
         _polySpheres[i].f_sto(0) = ran_gen();
         _polySpheres[i].f_sto(1) = ran_gen();
@@ -460,8 +430,8 @@ void CConfiguration::save_traj_step(XDRFILE *xd, const int stepcount) {
 
 void CConfiguration::saveCoordinates(ostream& trajectoryfile, unsigned int stepcount) {
     // So far this only writes the tracer particle position
-	trajectoryfile << fixed << stepcount * _timestep << "\t" 
-        << _ppos(0)+ _boxsize *_boxnumberXYZ[0] << " " << _ppos(1) +_boxsize*_boxnumberXYZ[1] 
+	trajectoryfile << fixed << stepcount * _timestep << "\t"
+        << _ppos(0)+ _boxsize *_boxnumberXYZ[0] << " " << _ppos(1) +_boxsize*_boxnumberXYZ[1]
             << " " << _ppos(2) +_boxsize*_boxnumberXYZ[2] << endl;
 
 	// for (unsigned int i = 0; i < m_NumberParticles; i++) {
