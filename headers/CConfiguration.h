@@ -86,7 +86,7 @@ private:
     //SemiFlexiblePolymer
     std::vector<std::array<int, 2> > _MspringTupel;
     std::vector<std::array<int, 3> > _MbendTupel;
-    double _binv;
+    double _b2inv;
     
     //LJlist
     std::vector<int> _LJlist;
@@ -173,7 +173,7 @@ private:
         _epsilonLJ = 1;  // in kT 
         _upot = 0;
         _r0SP = _boxsize/_n_cellsAlongb/_edgeParticles; //equilibrium distance for spring potential
-        _binv = 2./_boxsize;
+        _b2inv = 2./_boxsize;
         //TODO LJlist
         _cutoffAddToLJlistSq = pow(2*_boxsize/_n_cellsAlongb,2);
         _cutoffUpdateLJlistSq = pow(0.3,2)*_cutoffAddToLJlistSq;
@@ -197,9 +197,9 @@ private:
     }
     
     //POTENTIALS
-    void addLJPot(const double& rsq, double& U, double& Fr, const double& d_stericSq){
+    void addLJPot(const double& rsq, double& U, double& Fr, const double& stericSq){
         //Function to calculate the Lennard-Jones Potential
-        const double por6 = pow((d_stericSq / rsq ), 3);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
+        const double por6 = pow((stericSq / rsq ), 3);      //por6 stands for "p over r to the power of 6" . d_steric is the total steric parameter
         const double c1 = 4. * por6 * _epsilonLJ;
         U += c1 * ( por6 - 1. ) + _epsilonLJ;
         //U += 4. * _epsilonLJ * ( por6*por6 - por6 + 0.25 );

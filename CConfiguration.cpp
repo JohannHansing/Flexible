@@ -18,7 +18,7 @@ CConfiguration::CConfiguration(){
 
 CConfiguration::CConfiguration(double timestep, model_param_desc modelpar, sim_triggers triggers, file_desc files){
     _pradius = modelpar.particlesize/2;   //_pradius is now the actual radius of the particle. hence, I need to change the definition of the LJ potential to include (_pradius + _polyrad)   -  or maybe leave LJ pot out
-    _polyrad = modelpar.polymersize / 2;   //This is needed for testOverlap for steric and HI stuff !!
+    _polyrad = modelpar.polymersize/2;   //This is needed for testOverlap for steric and HI stuff !!
 	_boxsize = modelpar.boxsize;
     _n_cellsAlongb = modelpar.n_cells;
     _kappaSP = modelpar.kspring; // in kT/a^2 NO! I this would only be true, if all lengths were rescaled by the particle size. I, in contrast, rescale with 0.1b!
@@ -243,9 +243,9 @@ Vector3d CConfiguration::minImage(Vector3d rij){
     int abc[3];
     Vector3d minvec = rij;
         for (int p=0;p<3;p++){
-            abc[p]= minvec(p)*(_binv);
+            abc[p]= minvec(p)*(_b2inv);
             minvec(p) -= abc[p] * _boxsize;
-            abc[p]= minvec(p)*(_binv);
+            abc[p]= minvec(p)*(_b2inv);
             minvec(p) -= abc[p] * _boxsize;
         }
     // Vector3d rij_rem;
