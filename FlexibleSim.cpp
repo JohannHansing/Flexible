@@ -77,7 +77,7 @@ int main(int argc, const char* argv[]){
     start = clock();
     cout << "Starting Simulation!" << endl;
 
-    unsigned int stepcount = 0;
+    unsigned long long stepcount = 0;
     ofstream trajectoryfile;
     trajectoryfile.open((_files.folder + "/Coordinates/trajectory.txt").c_str());
     _files.xtc_filename = "TEST.xtc";    // TODO xtc
